@@ -6,7 +6,7 @@ centavos com ROUND_HALF_UP (a lei não fixa regra: convenção da biblioteca).
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-from .tabelas import ANEXOS, FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS
+from .tabelas import FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
 
 CENTAVO = Decimal("0.01")
 
@@ -35,16 +35,21 @@ def _decimal(valor, nome):
     return numero
 
 
-def _anexo(anexo):
+def _anexo(anexo, ano):
+    anexos = vigencia(ano).anexos
     chave = anexo.upper() if isinstance(anexo, str) else anexo
-    if chave not in ANEXOS:
+    if chave not in anexos:
         raise ValueError(f"anexo: esperado I, II, III, IV ou V, veio {anexo!r}")
-    return ANEXOS[chave]
+    return anexos[chave]
 
 
-def faixa(anexo, rbt12):
-    """Faixa do anexo para a receita bruta de 12 meses (o teto é da faixa)."""
-    faixas = _anexo(anexo)
+def faixa(anexo, rbt12, *, ano):
+    """Faixa do anexo para a receita bruta de 12 meses (o teto é da faixa).
+
+    `ano` é o ano-calendário do mês de apuração, não o de hoje: o DAS de
+    dezembro de 2026, pago em janeiro de 2027, usa a tabela de 2026.
+    """
+    faixas = _anexo(anexo, ano)
     rbt12 = _decimal(rbt12, "rbt12")
     if rbt12 <= 0:
         raise ValueError(
@@ -61,23 +66,25 @@ def faixa(anexo, rbt12):
     raise AssertionError("inalcançável: a última faixa termina no limite")
 
 
-def aliquota_efetiva(anexo, rbt12):
+def aliquota_efetiva(anexo, rbt12, *, ano):
     """(RBT12 × Aliq − PD) / RBT12, LC 123, art. 18, § 1º-A. Sem arredondar."""
-    f = faixa(anexo, rbt12)
+    f = faixa(anexo, rbt12, ano=ano)
     rbt12 = Decimal(rbt12)
     return (rbt12 * f.aliquota - f.parcela_deduzir) / rbt12
 
 
-def valor_devido(anexo, rbt12, receita_mes):
+def valor_devido(anexo, rbt12, receita_mes, *, ano):
     """Receita do mês × alíquota efetiva (art. 18, § 3º), em centavos.
 
     Acima do sublimite de R$ 3,6 milhões é só o DAS federal: ICMS e ISS são
-    recolhidos fora dele (ver avisos).
+    recolhidos fora dele (ver avisos). A partir de 2027 é o DAS cheio, com
+    as parcelas de CBS e IBS; quem optar pelo regime regular desses tributos
+    (LC 123, art. 13, § 9º) as paga fora e o DAS fica menor.
     """
     receita_mes = _decimal(receita_mes, "receita_mes")
     if receita_mes < 0:
         raise ValueError("receita_mes não pode ser negativa")
-    efetiva = aliquota_efetiva(anexo, rbt12)
+    efetiva = aliquota_efetiva(anexo, rbt12, ano=ano)
     return (receita_mes * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 

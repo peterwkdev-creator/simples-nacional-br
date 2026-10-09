@@ -12,12 +12,20 @@ linha, então um erro de digitação no valor esperado também derruba o teste.
 Valor do mês = receita do mês x alíquota efetiva, arredondado em centavos com
 ROUND_HALF_UP. A lei não fixa regra de arredondamento; esta é a convenção da
 biblioteca, e o único arredondamento que ela faz.
+
+Tabela por ano-calendário de apuração (LC 214/2025, art. 519 e Anexos XVIII
+a XXII, texto atualizado lido na Câmara em 09/10/2026, URL em
+simples_nacional/tabelas.py): "Para os anos-calendário 2027 e 2028" a
+nominal da 6ª faixa cai 0,1 ponto, com a mesma parcela a deduzir; "A partir
+do ano-calendário 2029" a tabela volta a ser a de CASOS.
 """
 
 import unittest
 from decimal import Decimal, ROUND_HALF_UP
 
 from simples_nacional import faixa, aliquota_efetiva, valor_devido
+
+ANO = 2026
 
 RECEITA_MES = Decimal("31234.56")
 
@@ -80,7 +88,7 @@ class TestFaixasPorAnexo(unittest.TestCase):
     def test_tabela_igual_a_lei(self):
         for anexo, n, rbt12, aliq, pd, *_ in CASOS:
             with self.subTest(anexo=anexo, faixa=n):
-                f = faixa(anexo, rbt12)
+                f = faixa(anexo, rbt12, ano=ANO)
                 self.assertEqual(f.numero, n)
                 self.assertEqual(f.aliquota, Decimal(aliq) / 100)
                 self.assertEqual(f.parcela_deduzir, Decimal(pd))
@@ -89,12 +97,12 @@ class TestFaixasPorAnexo(unittest.TestCase):
     def test_aliquota_efetiva(self):
         for anexo, n, rbt12, _, _, conta, efetiva, _ in CASOS:
             with self.subTest(anexo=anexo, faixa=n, conta=conta):
-                self.assertEqual(aliquota_efetiva(anexo, rbt12), Decimal(efetiva))
+                self.assertEqual(aliquota_efetiva(anexo, rbt12, ano=ANO), Decimal(efetiva))
 
     def test_valor_do_mes_centavo_a_centavo(self):
         for anexo, n, rbt12, *_, valor in CASOS:
             with self.subTest(anexo=anexo, faixa=n):
-                self.assertEqual(valor_devido(anexo, rbt12, RECEITA_MES), Decimal(valor))
+                self.assertEqual(valor_devido(anexo, rbt12, RECEITA_MES, ano=ANO), Decimal(valor))
 
 
 class TestFronteiras(unittest.TestCase):
@@ -104,14 +112,74 @@ class TestFronteiras(unittest.TestCase):
         for anexo in ("I", "II", "III", "IV", "V"):
             for n, teto in enumerate(TETOS, 1):
                 with self.subTest(anexo=anexo, teto=teto):
-                    self.assertEqual(faixa(anexo, teto).numero, n)
+                    self.assertEqual(faixa(anexo, teto, ano=ANO).numero, n)
 
     def test_um_centavo_acima_sobe_de_faixa(self):
         for anexo in ("I", "II", "III", "IV", "V"):
             for n, teto in enumerate(TETOS[:-1], 1):
                 acima = Decimal(teto) + Decimal("0.01")
                 with self.subTest(anexo=anexo, rbt12=acima):
-                    self.assertEqual(faixa(anexo, acima).numero, n + 1)
+                    self.assertEqual(faixa(anexo, acima, ano=ANO).numero, n + 1)
+
+
+# 6ª faixa de 2027 e 2028 (LC 214, Anexos XVIII a XXII): (anexo, nominal %,
+# parcela a deduzir, conta à mão, alíquota efetiva). RBT12 de 4.500.000.
+SEXTA_2027 = [
+    ("I", "18.90", "378000", "(850.500 - 378.000) / 4.500.000", "0.105"),
+    ("II", "29.90", "720000", "(1.345.500 - 720.000) / 4.500.000", "0.139"),
+    ("III", "32.90", "648000", "(1.480.500 - 648.000) / 4.500.000", "0.185"),
+    ("IV", "32.90", "828000", "(1.480.500 - 828.000) / 4.500.000", "0.145"),
+    ("V", "30.40", "540000", "(1.368.000 - 540.000) / 4.500.000", "0.184"),
+]
+
+
+class TestTabelaPorAno(unittest.TestCase):
+
+    def test_conta_a_mao_2027_confere(self):
+        for anexo, aliq, pd, conta, efetiva in SEXTA_2027:
+            with self.subTest(anexo=anexo, conta=conta):
+                rbt12 = Decimal("4500000")
+                self.assertEqual((rbt12 * Decimal(aliq) / 100 - Decimal(pd)) / rbt12,
+                                 Decimal(efetiva))
+
+    def test_sexta_faixa_de_2027_e_2028(self):
+        for ano in (2027, 2028):
+            for anexo, aliq, pd, conta, efetiva in SEXTA_2027:
+                with self.subTest(ano=ano, anexo=anexo, conta=conta):
+                    f = faixa(anexo, 4_500_000, ano=ano)
+                    self.assertEqual(f.numero, 6)
+                    self.assertEqual(f.aliquota, Decimal(aliq) / 100)
+                    self.assertEqual(f.parcela_deduzir, Decimal(pd))
+                    self.assertEqual(f.teto, Decimal(TETOS[5]))
+                    self.assertEqual(aliquota_efetiva(anexo, 4_500_000, ano=ano), Decimal(efetiva))
+
+    def test_mes_de_2027(self):
+        # 375.000 x 10,5% = 39.375,00 (em 2026: 375.000 x 10,6% = 39.750,00)
+        self.assertEqual(valor_devido("I", 4_500_000, 375_000, ano=2027), Decimal("39375.00"))
+
+    def test_faixas_1_a_5_nao_mudam_em_2027_e_2028(self):
+        for ano in (2027, 2028):
+            for anexo, n, rbt12, aliq, pd, conta, efetiva, valor in CASOS:
+                if n == 6:
+                    continue
+                with self.subTest(ano=ano, anexo=anexo, faixa=n):
+                    f = faixa(anexo, rbt12, ano=ano)
+                    self.assertEqual((f.aliquota, f.parcela_deduzir), (Decimal(aliq) / 100, Decimal(pd)))
+                    self.assertEqual(valor_devido(anexo, rbt12, RECEITA_MES, ano=ano), Decimal(valor))
+
+    def test_de_2018_a_2026_e_a_partir_de_2029_a_tabela_de_casos(self):
+        for ano in (2018, 2026, 2029, 2033, 2040):
+            for anexo, n, rbt12, aliq, pd, conta, efetiva, valor in CASOS:
+                with self.subTest(ano=ano, anexo=anexo, faixa=n):
+                    f = faixa(anexo, rbt12, ano=ano)
+                    self.assertEqual((f.aliquota, f.parcela_deduzir), (Decimal(aliq) / 100, Decimal(pd)))
+                    self.assertEqual(aliquota_efetiva(anexo, rbt12, ano=ano), Decimal(efetiva))
+
+    def test_teto_de_2027_fica_na_faixa_de_baixo(self):
+        for anexo in ("I", "II", "III", "IV", "V"):
+            for n, teto in enumerate(TETOS, 1):
+                with self.subTest(anexo=anexo, teto=teto):
+                    self.assertEqual(faixa(anexo, teto, ano=2027).numero, n)
 
 
 if __name__ == "__main__":

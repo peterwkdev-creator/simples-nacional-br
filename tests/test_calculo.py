@@ -30,25 +30,25 @@ class TestCaso146(unittest.TestCase):
     """
 
     def test_efetiva(self):
-        self.assertEqual(aliquota_efetiva("I", 4_500_000), Decimal("0.106"))
+        self.assertEqual(aliquota_efetiva("I", 4_500_000, ano=2026), Decimal("0.106"))
 
     def test_ano_inteiro(self):
-        self.assertEqual(valor_devido("I", 4_500_000, 4_500_000), Decimal("477000.00"))
+        self.assertEqual(valor_devido("I", 4_500_000, 4_500_000, ano=2026), Decimal("477000.00"))
 
     def test_mes(self):
         # 375.000 x 10,6% = 39.750,00; x 12 = 477.000,00
-        self.assertEqual(valor_devido("I", 4_500_000, 375_000), Decimal("39750.00"))
+        self.assertEqual(valor_devido("I", 4_500_000, 375_000, ano=2026), Decimal("39750.00"))
 
 
 class TestArredondamento(unittest.TestCase):
 
     def test_meio_centavo_sobe(self):
         # 12,625 x 4% = 0,505 -> 0,51 (ROUND_HALF_UP; half-even daria 0,50)
-        self.assertEqual(valor_devido("I", 100_000, "12.625"), Decimal("0.51"))
+        self.assertEqual(valor_devido("I", 100_000, "12.625", ano=2026), Decimal("0.51"))
 
     def test_efetiva_sem_arredondar(self):
         # Anexo III, 4ª faixa: (240.000 - 35.640) / 1.500.000 = 0,13624, todos os dígitos
-        self.assertEqual(aliquota_efetiva("III", 1_500_000), Decimal("0.13624"))
+        self.assertEqual(aliquota_efetiva("III", 1_500_000, ano=2026), Decimal("0.13624"))
 
 
 class TestFatorR(unittest.TestCase):
@@ -79,20 +79,20 @@ class TestLimite(unittest.TestCase):
 
     def test_teto_exato_ainda_calcula(self):
         # (4.800.000 x 19% - 378.000) / 4.800.000 = 534.000 / 4.800.000 = 11,125%
-        self.assertEqual(aliquota_efetiva("I", 4_800_000), Decimal("0.11125"))
+        self.assertEqual(aliquota_efetiva("I", 4_800_000, ano=2026), Decimal("0.11125"))
 
     def test_acima_do_teto_e_erro_explicado(self):
         for anexo in ("I", "II", "III", "IV", "V"):
             with self.subTest(anexo=anexo):
                 with self.assertRaises(LimiteExcedido) as erro:
-                    aliquota_efetiva(anexo, "4800000.01")
+                    aliquota_efetiva(anexo, "4800000.01", ano=2026)
                 mensagem = str(erro.exception)
                 self.assertIn("4.800.000,00", mensagem)
                 self.assertIn("art. 3", mensagem)
 
     def test_valor_devido_tambem_recusa(self):
         with self.assertRaises(LimiteExcedido):
-            valor_devido("I", 5_000_000, 400_000)
+            valor_devido("I", 5_000_000, 400_000, ano=2026)
 
     def test_limite_excedido_e_value_error(self):
         self.assertTrue(issubclass(LimiteExcedido, ValueError))
@@ -127,7 +127,7 @@ class TestInicioDeAtividade(unittest.TestCase):
 
     def test_equivale_a_proporcionalizar_as_faixas(self):
         rbt12 = rbt12_inicio_atividade(90_000, 3)
-        self.assertEqual(aliquota_efetiva("I", rbt12), Decimal("0.0565"))
+        self.assertEqual(aliquota_efetiva("I", rbt12, ano=2026), Decimal("0.0565"))
 
     def test_meses_fora_do_intervalo(self):
         for meses in (0, -1, 12):
@@ -141,30 +141,52 @@ class TestEntradas(unittest.TestCase):
     def test_float_recusado(self):
         # float erra centavo: 0.1 + 0.2 != 0.3
         with self.assertRaises(TypeError):
-            aliquota_efetiva("I", 4500000.0)
+            aliquota_efetiva("I", 4500000.0, ano=2026)
 
     def test_anexo_invalido(self):
         for anexo in ("VI", "", "1", None):
             with self.subTest(anexo=anexo):
                 with self.assertRaises(ValueError):
-                    aliquota_efetiva(anexo, 100_000)
+                    aliquota_efetiva(anexo, 100_000, ano=2026)
 
     def test_anexo_minusculo(self):
-        self.assertEqual(aliquota_efetiva("iii", 150_000), Decimal("0.06"))
+        self.assertEqual(aliquota_efetiva("iii", 150_000, ano=2026), Decimal("0.06"))
 
     def test_rbt12_zero_ou_negativo(self):
         for rbt12 in (0, -1):
             with self.subTest(rbt12=rbt12):
                 with self.assertRaises(ValueError):
-                    aliquota_efetiva("I", rbt12)
+                    aliquota_efetiva("I", rbt12, ano=2026)
 
     def test_receita_negativa(self):
         with self.assertRaises(ValueError):
-            valor_devido("I", 100_000, -1)
+            valor_devido("I", 100_000, -1, ano=2026)
 
     def test_texto_invalido(self):
         with self.assertRaises(ValueError):
-            aliquota_efetiva("I", "abc")
+            aliquota_efetiva("I", "abc", ano=2026)
+
+
+class TestAno(unittest.TestCase):
+    """O ano-calendário de apuração escolhe a tabela: sem ele, erro."""
+
+    def test_ano_obrigatorio(self):
+        with self.assertRaises(TypeError):
+            aliquota_efetiva("I", 100_000)
+        with self.assertRaises(TypeError):
+            valor_devido("I", 100_000, 1_000)
+
+    def test_ano_tem_de_ser_int(self):
+        for ano in ("2027", 2027.0, True, None):
+            with self.subTest(ano=ano):
+                with self.assertRaises(TypeError):
+                    aliquota_efetiva("I", 100_000, ano=ano)
+
+    def test_antes_de_2018_nao_coberto(self):
+        # A tabela da LC 155/2016 vale desde 01/01/2018.
+        with self.assertRaises(ValueError) as erro:
+            aliquota_efetiva("I", 100_000, ano=2017)
+        self.assertIn("2018", str(erro.exception))
 
 
 if __name__ == "__main__":

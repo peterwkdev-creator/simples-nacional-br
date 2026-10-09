@@ -1,7 +1,8 @@
-"""Linha de comando: python -m simples_nacional --anexo I --rbt12 4500000 --receita-mes 375000"""
+"""Linha de comando: python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000"""
 
 import argparse
 import sys
+from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
 from .calculo import (
@@ -14,6 +15,7 @@ from .calculo import (
     reais,
     valor_devido,
 )
+from .tabelas import vigencia
 
 
 def _numero(texto):
@@ -49,11 +51,16 @@ def main(argv=None):
     p.add_argument("--folha12", type=_numero,
                    help="folha de salários dos 12 meses anteriores (art. 18, § 24), "
                         "obrigatória com --anexo fator-r")
+    p.add_argument("--ano", type=int, default=date.today().year,
+                   help="ano-calendário do mês de apuração (padrão: o ano corrente); "
+                        "a tabela de 2027 e 2028 tem a 6ª faixa 0,1 ponto menor")
     a = p.parse_args(argv)
 
     linhas = []
     anexo = a.anexo.upper()
     try:
+        linhas.append(f"Tabela do ano-calendário {a.ano}: {vigencia(a.ano).fonte} "
+                      "(para outro ano de apuração, use --ano)")
         if anexo == "FATOR-R":
             if a.folha12 is None:
                 p.error("--anexo fator-r exige --folha12")
@@ -61,9 +68,9 @@ def main(argv=None):
             linhas.append(
                 f"Fator R: {_porcentagem(fator_r(a.folha12, a.rbt12))} "
                 f"-> Anexo {anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
-        f = faixa(anexo, a.rbt12)
-        efetiva = aliquota_efetiva(anexo, a.rbt12)
-        valor = valor_devido(anexo, a.rbt12, a.receita_mes)
+        f = faixa(anexo, a.rbt12, ano=a.ano)
+        efetiva = aliquota_efetiva(anexo, a.rbt12, ano=a.ano)
+        valor = valor_devido(anexo, a.rbt12, a.receita_mes, ano=a.ano)
     except LimiteExcedido as erro:
         print(f"erro: {erro}", file=sys.stderr)
         return 2
