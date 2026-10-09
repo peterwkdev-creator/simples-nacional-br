@@ -13,6 +13,7 @@ from .calculo import (
     aliquota_inicio_atividade,
     anexo_por_fator_r,
     avisos,
+    avisos_inicio_atividade,
     faixa,
     fator_r,
     para_decimal,
@@ -32,7 +33,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 
 __all__ = [
     "ANEXOS",
@@ -48,6 +49,7 @@ __all__ = [
     "aliquota_inicio_atividade",
     "anexo_por_fator_r",
     "avisos",
+    "avisos_inicio_atividade",
     "faixa",
     "fator_r",
     "ler_numero",

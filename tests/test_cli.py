@@ -1,20 +1,34 @@
 """A linha de comando, rodada como o usuário roda (python -m simples_nacional)."""
 
+import io
 import os
+import re
 import subprocess
 import sys
 import unittest
+from contextlib import redirect_stdout
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
+
+from simples_nacional import __version__, ler_numero
+from simples_nacional.__main__ import main
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def rodar(*args):
-    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+def rodar(*args, codificacao="utf-8"):
+    env = dict(os.environ, PYTHONIOENCODING=codificacao)
     return subprocess.run(
         [sys.executable, "-m", "simples_nacional", *args],
-        cwd=RAIZ, env=env, capture_output=True, text=True, encoding="utf-8",
+        cwd=RAIZ, env=env, capture_output=True, text=True, encoding=codificacao,
     )
+
+
+def saida(*args):
+    """main() no mesmo processo: rápido para muitos casos."""
+    with redirect_stdout(io.StringIO()) as texto:
+        codigo = main(list(args))
+    return codigo, texto.getvalue()
 
 
 class TestCli(unittest.TestCase):
@@ -164,6 +178,105 @@ class TestCliEntradas(unittest.TestCase):
 
     def test_ajuda_cita_a_lc_214(self):
         self.assertIn("LC 214/2025", rodar("--help").stdout)
+
+
+class TestCli034(unittest.TestCase):
+
+    def test_conta_do_valor_fecha_no_centavo(self):
+        # R$ 1.000.000,00 x 15,9054% daria 159.054,00; a efetiva vai com as
+        # casas que fecham: 15,905405%
+        linha = re.compile(r"Valor do mês: R\$ ([\d.,]+) = R\$ ([\d.,]+) × ([\d,]+)%")
+        for anexo in ("I", "II", "III", "IV", "V"):
+            for rbt12 in ("180000", "1234567,89", "3700000", "4800000"):
+                for receita in ("1.000.000,00", "123.456,78", "0,01"):
+                    with self.subTest(anexo=anexo, rbt12=rbt12, receita=receita):
+                        codigo, texto = saida("--ano", "2026", "--anexo", anexo,
+                                              "--rbt12", rbt12, "--receita-mes", receita)
+                        self.assertEqual(codigo, 0)
+                        valor, base, efetiva = linha.search(texto).groups()
+                        conta = ler_numero(base) * ler_numero(efetiva) / 100
+                        self.assertEqual(conta.quantize(Decimal("0.01"), ROUND_HALF_UP),
+                                         ler_numero(valor))
+        _, texto = saida("--ano", "2026", "--anexo", "V", "--rbt12", "3700000",
+                         "--receita-mes", "1000000")
+        self.assertIn("R$ 159.054,05 = R$ 1.000.000,00 × 15,905405%", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--rbt12", "4500000",
+                         "--receita-mes", "375000")
+        self.assertIn("R$ 39.750,00 = R$ 375.000,00 × 10,6000%", texto)  # 4 casas bastam
+
+    def test_fator_r_nao_arredonda_para_cima(self):
+        # 27.999,99 / 100.000 = 27,99999%: abaixo de 28%, Anexo V
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "100000",
+                         "--folha12", "27999,99", "--receita-mes", "10000")
+        self.assertIn("Fator R: 27,9999% -> Anexo V", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "100000",
+                         "--folha12", "28000", "--receita-mes", "10000")
+        self.assertIn("Fator R: 28,0000% -> Anexo III", texto)
+
+    def test_version(self):
+        r = rodar("--version")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), f"simples-nacional {__version__}")
+
+    def test_reais_na_linha_de_comando(self):
+        _, com_rs = saida("--ano", "2026", "--anexo", "I", "--rbt12", "R$ 4.500.000,00",
+                          "--receita-mes", "R$ 375.000,00")
+        _, sem_rs = saida("--ano", "2026", "--anexo", "I", "--rbt12", "4500000",
+                          "--receita-mes", "375000")
+        self.assertEqual(com_rs, sem_rs)
+
+    def test_saida_redirecionada_em_cp1252(self):
+        # o Windows redirecionado escreve em cp1252: um caractere fora dele
+        # viraria UnicodeEncodeError (PYTHONIOENCODING sem errors é estrito)
+        casos = (
+            ("--ano", "2026", "--anexo", "I", "--rbt12", "4500000", "--receita-mes", "375000"),
+            ("--ano", "2027", "--anexo", "III", "--rbt12", "4000000", "--receita-mes", "1"),
+            ("--ano", "2026", "--anexo", "fator-r", "--rbt12", "100000", "--folha12",
+             "27999,99", "--receita-mes", "10000"),
+            ("--ano", "2026", "--anexo", "I", "--receitas", "30.000;50.000"),
+            ("--ano", "2027", "--anexo", "I", "--receitas", "30.000;50.000;60.000"),
+            ("--ano", "2028", "--anexo", "V", "--rbt12", "4800000", "--receita-mes", "1"),
+            ("--ano", "2027", "--anexo", "I", "--receitas", "2.000.000", "--mes-inicio", "8"),
+            ("--ano", "2027", "--anexo", "I", "--receitas", "2.000.000"),
+        )
+        for args in casos:
+            with self.subTest(args=args):
+                r = rodar(*args, codificacao="cp1252")
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertIn("×", r.stdout)
+
+
+class TestCliLimiteNoInicio(unittest.TestCase):
+
+    def test_sem_mes_de_inicio_pede_o_mes(self):
+        _, texto = saida("--ano", "2027", "--anexo", "I", "--receitas", "2.000.000")
+        self.assertIn("Aviso: R$ 2.000.000,00 em 1 mês passa de R$ 300.000,00 por mês", texto)
+        self.assertIn("informe --mes-inicio", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--receitas", "300.000;300.000")
+        self.assertNotIn("Aviso", texto)  # 600.000 em 2 meses: não passa de 300.000 por mês
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--receitas", "350.000;350.000")
+        self.assertIn("informe --mes-inicio", texto)  # 700.000: acima do sublimite, abaixo do limite
+
+    def test_com_mes_de_inicio_confere(self):
+        _, texto = saida("--ano", "2027", "--anexo", "I", "--receitas", "2.000.000",
+                         "--mes-inicio", "12")
+        self.assertIn("Aviso: Receita acumulada no ano de início de atividade (2027)", texto)
+        self.assertIn("fora do Simples Nacional desde o início de atividade", texto)
+        self.assertNotIn("informe --mes-inicio", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--receitas", "30.000;50.000",
+                         "--mes-inicio", "3")
+        self.assertNotIn("Aviso", texto)
+
+    def test_erros_de_uso(self):
+        for args, erro in ((("--rbt12", "1", "--receita-mes", "1", "--mes-inicio", "3"),
+                            "--mes-inicio só vale com --receitas"),
+                           (("--receitas", "1", "--mes-inicio", "13"), "mês inválido: '13'"),
+                           (("--receitas", "1", "--mes-inicio", "x"), "mês inválido: 'x'")):
+            with self.subTest(args=args):
+                r = rodar("--ano", "2026", "--anexo", "I", *args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn(erro, r.stderr)
 
 
 if __name__ == "__main__":

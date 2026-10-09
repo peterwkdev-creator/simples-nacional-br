@@ -2,12 +2,14 @@
 
 Decimal do começo ao fim; o único arredondamento é o do valor do mês, em
 centavos com ROUND_HALF_UP (a lei não fixa regra: convenção da biblioteca).
+As contas correm num contexto Decimal fixo (28 dígitos), o mesmo seja qual
+for o getcontext() de quem chama.
 """
 
 from collections.abc import Sequence
 from decimal import Decimal, ROUND_HALF_UP
 
-from .formato import CENTAVO, para_decimal, reais
+from .formato import CENTAVO, _contexto_fixo, para_decimal, reais
 from .tabelas import FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
 
 # A partir deste ano-calendário o RBT12 é o dos 12 meses antecedentes ao mês
@@ -58,6 +60,7 @@ def faixa(anexo, rbt12, *, ano):
     raise AssertionError("inalcançável: a última faixa termina no limite")
 
 
+@_contexto_fixo
 def aliquota_efetiva(anexo, rbt12, *, ano):
     """(RBT12 × Aliq − PD) / RBT12, LC 123, art. 18, § 1º-A. Sem arredondar."""
     f = faixa(anexo, rbt12, ano=ano)
@@ -65,6 +68,7 @@ def aliquota_efetiva(anexo, rbt12, *, ano):
     return (rbt12 * f.aliquota - f.parcela_deduzir) / rbt12
 
 
+@_contexto_fixo
 def valor_devido(anexo, rbt12, receita_mes, *, ano):
     """Receita do mês × alíquota efetiva (art. 18, § 3º), em centavos.
 
@@ -82,6 +86,7 @@ def valor_devido(anexo, rbt12, receita_mes, *, ano):
     return (receita_mes * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 
+@_contexto_fixo
 def fator_r(folha12, rbt12):
     """Folha dos últimos 12 meses ÷ RBT12 (art. 18, §§ 5º-K e 24).
 
@@ -102,6 +107,7 @@ def anexo_por_fator_r(folha12, rbt12):
     return "III" if fator_r(folha12, rbt12) >= FATOR_R_MINIMO else "V"
 
 
+@_contexto_fixo
 def rbt12_inicio_atividade(receita_acumulada, meses):
     """RBT12 de empresa com menos de 12 meses de atividade.
 
@@ -119,6 +125,7 @@ def rbt12_inicio_atividade(receita_acumulada, meses):
     return receita_acumulada * 12 / meses
 
 
+@_contexto_fixo
 def _rbt12_primeiros_meses(receitas, ano):
     """(RBT12, regra) do mês de apuração, o último de `receitas`.
 
@@ -148,6 +155,7 @@ def _rbt12_primeiros_meses(receitas, ano):
     return rbt12, regra
 
 
+@_contexto_fixo
 def aliquota_inicio_atividade(anexo, receitas, *, ano):
     """Alíquota efetiva nos primeiros meses de atividade (Res. CGSN 140, art. 22).
 
@@ -165,6 +173,7 @@ def aliquota_inicio_atividade(anexo, receitas, *, ano):
     return aliquota_efetiva(anexo, rbt12, ano=ano)
 
 
+@_contexto_fixo
 def valor_devido_inicio_atividade(anexo, receitas, *, ano):
     """Receita do mês de apuração (a última) × aliquota_inicio_atividade, em centavos."""
     efetiva = aliquota_inicio_atividade(anexo, receitas, ano=ano)
@@ -204,8 +213,11 @@ def avisos(rbt12, *, ano=None):
     O texto do sublimite muda com o ano-calendário de apuração: até 2026, ICMS e
     ISS; de 2027 a 2032, também o IBS (LC 214/2025, art. 517); de 2033 em
     diante, só o IBS (art. 518). Sem `ano`, vale o texto até 2026.
+    RBT12 zero ou negativo é ValueError, como em faixa.
     """
     rbt12 = _decimal(rbt12, "rbt12")
+    if rbt12 <= 0:
+        raise ValueError("rbt12 tem de ser positivo")
     if ano is not None:
         vigencia(ano)  # mesma validação do ano dos cálculos
     saida = []
@@ -216,3 +228,60 @@ def avisos(rbt12, *, ano=None):
     elif rbt12 > SUBLIMITE_ICMS_ISS:
         saida.append(_aviso_sublimite(ano))
     return saida
+
+
+def _meses(n):
+    return "1 mês" if n == 1 else f"{n} meses"
+
+
+def _efeito_do_excesso(acumulada, teto, nome):
+    """LC 123, art. 3º, §§ 10, 12 e 13: mais de 20% acima retroage ao início."""
+    if acumulada - teto > teto * Decimal("0.2"):
+        return f"desde o início de atividade, porque o excesso passa de 20% do {nome}"
+    return f"a partir de 1º de janeiro do ano seguinte, porque o excesso não passa de 20% do {nome}"
+
+
+@_contexto_fixo
+def avisos_inicio_atividade(receitas, mes_inicio, *, ano):
+    """Avisos do limite e do sublimite proporcionais no ano de início de atividade.
+
+    No ano-calendário em que a atividade começa, o limite é R$ 400.000,00 e o
+    sublimite R$ 300.000,00, multiplicados pelos meses do início até
+    dezembro, fração de mês como mês inteiro (LC 123, art. 3º, §§ 2º e 11;
+    Res. CGSN 140, arts. 3º e 9º, § 2º). `receitas` e `ano` são os de
+    aliquota_inicio_atividade; `mes_inicio` é o mês do calendário (1 a 12) em
+    que a atividade começou. Somam-se só as receitas desse ano: as
+    13 - mes_inicio primeiras. Excesso de mais de 20% retroage ao início; de
+    até 20%, vale a partir do ano seguinte (art. 3º, §§ 10, 12 e 13).
+    """
+    if isinstance(mes_inicio, bool) or not isinstance(mes_inicio, int) or not 1 <= mes_inicio <= 12:
+        raise ValueError("mes_inicio tem de ser int de 1 a 12 (o mês do calendário)")
+    _rbt12_primeiros_meses(receitas, ano)  # mesma validação da lista e do ano
+    meses = 13 - mes_inicio
+    ano_inicio = ano if len(receitas) <= meses else ano - 1
+    acumulada = sum((_decimal(r, "receitas") for r in receitas[:meses]), Decimal(0))
+    limite, sublimite = LIMITE_RECEITA / 12 * meses, SUBLIMITE_ICMS_ISS / 12 * meses
+    receita = (f"Receita acumulada no ano de início de atividade ({ano_inicio}) de "
+               f"R$ {reais(acumulada)}")
+    if acumulada > limite:
+        return [
+            f"{receita}, acima do limite proporcional de R$ {reais(limite)} "
+            f"(R$ {reais(LIMITE_RECEITA / 12)} × {_meses(meses)}, do início a dezembro; "
+            "LC 123, art. 3º, § 2º): fora do Simples Nacional "
+            f"{_efeito_do_excesso(acumulada, limite, 'limite')} "
+            "(art. 3º, §§ 10 e 12; art. 31, III)."]
+    if acumulada > sublimite:
+        if ano_inicio <= 2026:
+            tributos, fora = "ICMS e ISS saem", "são recolhidos"
+        elif ano_inicio <= 2032:
+            tributos, fora = "ICMS, ISS e IBS saem", "são recolhidos"
+        else:
+            tributos, fora = "o IBS sai", "é recolhido"
+        return [
+            f"{receita}, acima do sublimite proporcional de R$ {reais(sublimite)} "
+            f"(R$ {reais(SUBLIMITE_ICMS_ISS / 12)} × {_meses(meses)}, do início a "
+            f"dezembro; LC 123, art. 3º, § 11): {tributos} do DAS "
+            f"{_efeito_do_excesso(acumulada, sublimite, 'sublimite')} "
+            f"(art. 3º, § 13) e {fora} pelas regras de cada ente; isso não é "
+            "calculado aqui."]
+    return []

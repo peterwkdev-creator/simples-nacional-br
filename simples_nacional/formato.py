@@ -4,27 +4,51 @@ Públicos desde a 0.3.1, para quem integra a biblioteca não reescrever a
 regra do ponto de milhar.
 """
 
+import functools
 import re
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import (Context, Decimal, DivisionByZero, InvalidOperation, Overflow,
+                     ROUND_HALF_EVEN, ROUND_HALF_UP, localcontext)
 
 CENTAVO = Decimal("0.01")
+
+# Precisão e arredondamento fixos nas contas da biblioteca: um
+# getcontext().prec = 6 no programa de quem a usa faria o quantize do
+# centavo soltar InvalidOperation, e outro arredondamento mudaria o resultado.
+_CONTEXTO = Context(prec=28, rounding=ROUND_HALF_EVEN, Emin=-999999, Emax=999999,
+                    capitals=1, clamp=0, flags=[],
+                    traps=[InvalidOperation, DivisionByZero, Overflow])
+
+
+def _contexto_fixo(funcao):
+    @functools.wraps(funcao)
+    def envolvida(*args, **kwargs):
+        with localcontext(_CONTEXTO):
+            return funcao(*args, **kwargs)
+    return envolvida
+
 
 _MILHAR = re.compile(r"-?[1-9]\d{0,2}(\.\d{3})+(,\d+)?")  # 360.000 e 1.000,50
 _VIRGULA = re.compile(r"-?\d+(,\d+)?")                # 1000,50
 _PONTO = re.compile(r"-?\d+(\.\d{1,2})?")             # 4500000.00
+_REAIS = re.compile(r"R\$\s*")                        # R$ 1.000,50, como o Excel copia
 
 
 def ler_numero(texto):
-    """Aceita 4500000, 4500000.00, 1000,50, 1.000,50 e 360.000 (milhar).
+    """Aceita 4500000, 4500000.00, 1000,50, 1.000,50 e 360.000 (milhar), com
+    ou sem "R$" na frente e espaço nas pontas.
 
     Ponto seguido de três dígitos é milhar, como se escreve no Brasil; o que
-    não casa com nenhum formato (1,000.50, 1.0000) é recusado com ValueError,
-    não adivinhado.
+    não casa com nenhum formato (1,000.50, 1.0000, 100 000) é recusado com
+    ValueError, não adivinhado.
     """
-    if _MILHAR.fullmatch(texto) or _VIRGULA.fullmatch(texto):
-        normal = texto.replace(".", "").replace(",", ".")
-    elif _PONTO.fullmatch(texto):
-        normal = texto
+    numero = texto.strip()
+    sem_rs = _REAIS.match(numero)
+    if sem_rs:
+        numero = numero[sem_rs.end():]
+    if _MILHAR.fullmatch(numero) or _VIRGULA.fullmatch(numero):
+        normal = numero.replace(".", "").replace(",", ".")
+    elif _PONTO.fullmatch(numero):
+        normal = numero
     else:
         raise ValueError(f"número inválido: {texto!r} (use 1.000,50 ou 1000.50)")
     return Decimal(normal)
@@ -50,12 +74,14 @@ def para_decimal(valor, nome):
     return numero
 
 
+@_contexto_fixo
 def reais(valor):
     """Formato brasileiro: 4800000 -> '4.800.000,00'."""
     texto = f"{para_decimal(valor, 'valor').quantize(CENTAVO, ROUND_HALF_UP):,.2f}"
     return texto.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
+@_contexto_fixo
 def porcentagem(fracao):
     """Fração em porcentagem com quatro casas: Decimal("0.0565") -> '5,6500%'."""
     fracao = para_decimal(fracao, "fracao")

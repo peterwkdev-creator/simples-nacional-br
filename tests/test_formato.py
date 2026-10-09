@@ -30,6 +30,19 @@ class TestLerNumero(unittest.TestCase):
             with self.subTest(texto=texto):
                 self.assertEqual(ler_numero(texto), esperado)
 
+    def test_reais_na_frente_e_espaco_nas_pontas(self):
+        # como o Excel copia a célula: "R$ 1.000,50", às vezes com espaço sem quebra
+        casos = {"R$ 100.000,00": Decimal("100000.00"), "R$100": Decimal("100"),
+                 " 1.000,50 ": Decimal("1000.50"), "R$\u00a01.000,50": Decimal("1000.50"),
+                 "\tR$  8,8\n": Decimal("8.8")}
+        for texto, esperado in casos.items():
+            with self.subTest(texto=texto):
+                self.assertEqual(ler_numero(texto), esperado)
+        for texto in ("R$", "R$ abc", "R$ 1 000", "100 000", "1.000,50 R$", "US$ 10"):
+            with self.subTest(texto=texto):
+                with self.assertRaisesRegex(ValueError, "número inválido"):
+                    ler_numero(texto)
+
     def test_ambiguo_e_recusado_com_valueerror(self):
         # 0.500: grupo de milhar não começa em zero
         for texto in ("1,000.50", "1.0000", "1.000.0", "1.5.0", "abc", "", "1 000", "0.500"):

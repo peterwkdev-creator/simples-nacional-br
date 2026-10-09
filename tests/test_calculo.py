@@ -10,7 +10,7 @@ Primeiros meses de atividade: Res. CGSN 140/2018, art. 22 (URL em TestPrimeirosM
 """
 
 import unittest
-from decimal import Decimal
+from decimal import Decimal, Inexact, ROUND_DOWN, localcontext
 
 from simples_nacional import (
     LimiteExcedido,
@@ -107,6 +107,12 @@ class TestAvisos(unittest.TestCase):
         self.assertEqual(avisos(3_600_000), [])
         for ano in (2026, 2027, 2033):
             self.assertEqual(avisos(3_600_000, ano=ano), [])
+
+    def test_rbt12_zero_ou_negativo_e_erro(self):
+        for rbt12 in (0, -5, "0.00"):
+            with self.subTest(rbt12=rbt12):
+                with self.assertRaisesRegex(ValueError, "rbt12 tem de ser positivo"):
+                    avisos(rbt12)
 
     def test_sublimite(self):
         texto = " ".join(avisos("3600000.01"))
@@ -338,6 +344,118 @@ class TestEntradasErradas(unittest.TestCase):
             with self.subTest(receitas=type(receitas).__name__):
                 with self.assertRaisesRegex(TypeError, "^receitas: lista"):
                     valor_devido_inicio_atividade("I", receitas, ano=2026)
+
+
+class TestContextoDecimalDeQuemChama(unittest.TestCase):
+    """O getcontext() de quem usa a biblioteca não muda as contas dela."""
+
+    def test_precisao_e_arredondamento_alheios(self):
+        import simples_nacional as sn
+        contas = {
+            "aliquota_efetiva": lambda: sn.aliquota_efetiva("III", "1234567.89", ano=2026),
+            "valor_devido": lambda: sn.valor_devido("III", "1234567.89", "131131.58", ano=2026),
+            "fator_r": lambda: sn.fator_r("345678.9", "1234567.89"),
+            "rbt12_inicio_atividade": lambda: sn.rbt12_inicio_atividade("1000000", 7),
+            "aliquota_inicio_atividade": lambda: sn.aliquota_inicio_atividade(
+                "I", ["30000", "50000", "70000.01"], ano=2026),
+            "valor_devido_inicio_atividade": lambda: sn.valor_devido_inicio_atividade(
+                "I", ["30000", "50000", "70000.01"], ano=2026),
+            # média com dízima: a CLI chama esta direto, fora das públicas
+            "_rbt12_primeiros_meses": lambda: sn.calculo._rbt12_primeiros_meses(
+                ["10000", "10000.01", "10000.01", "70000"], 2026),
+            "avisos_inicio_atividade": lambda: sn.avisos_inicio_atividade(
+                ["123456.789", "234567.891", "345678.912"], 11, ano=2026),
+            "reais": lambda: sn.reais(Decimal("1234567.895")),
+            "porcentagem": lambda: sn.porcentagem(Decimal("0.123456789")),
+        }
+        esperado = {nome: conta() for nome, conta in contas.items()}
+        with localcontext() as alheio:
+            alheio.prec = 6
+            alheio.rounding = ROUND_DOWN
+            alheio.traps[Inexact] = True
+            for nome, conta in contas.items():
+                with self.subTest(conta=nome):
+                    self.assertEqual(conta(), esperado[nome])
+            self.assertEqual(alheio.prec, 6)  # o contexto de quem chama volta igual
+
+
+class TestLimiteProporcionalNoInicio(unittest.TestCase):
+    """LC 123, art. 3º, §§ 2º, 10 a 13; Res. CGSN 140, arts. 3º e 9º, § 2º.
+
+    Conta à mão: começo em novembro são 2 meses até dezembro; limite
+    400.000 × 2 = 800.000, sublimite 300.000 × 2 = 600.000; 20% do limite =
+    160.000 (retroage acima de 960.000), do sublimite = 120.000 (acima de
+    720.000).
+    """
+
+    def aviso(self, *receitas, mes=11, ano=2026):
+        from simples_nacional import avisos_inicio_atividade
+        return " ".join(avisos_inicio_atividade(list(receitas), mes, ano=ano))
+
+    def test_dentro_dos_dois(self):
+        self.assertEqual(self.aviso("300000", "300000"), "")  # 600.000: no sublimite, não acima
+
+    def test_sublimite_ate_20_por_cento_vale_no_ano_seguinte(self):
+        for acumulada in ("600000.01", "720000.00"):
+            with self.subTest(acumulada=acumulada):
+                texto = self.aviso("0", acumulada)
+                self.assertIn("acima do sublimite proporcional de R$ 600.000,00", texto)
+                self.assertIn("R$ 300.000,00 × 2 meses", texto)
+                self.assertIn("a partir de 1º de janeiro do ano seguinte", texto)
+                self.assertIn("ICMS e ISS saem do DAS", texto)
+                self.assertNotIn("do limite proporcional", texto)
+
+    def test_sublimite_acima_de_20_por_cento_retroage(self):
+        texto = self.aviso("0", "720000.01")
+        self.assertIn("desde o início de atividade, porque o excesso passa de 20% do sublimite", texto)
+
+    def test_limite_ate_20_por_cento_vale_no_ano_seguinte(self):
+        for acumulada in ("800000.01", "960000.00"):
+            with self.subTest(acumulada=acumulada):
+                texto = self.aviso(acumulada, "0")
+                self.assertIn("acima do limite proporcional de R$ 800.000,00", texto)
+                self.assertIn("fora do Simples Nacional a partir de 1º de janeiro do ano seguinte", texto)
+                self.assertNotIn("sublimite", texto)
+        self.assertNotIn("do limite proporcional", self.aviso("800000.00", "0"))
+
+    def test_limite_acima_de_20_por_cento_retroage(self):
+        texto = self.aviso("960000.01", "0")
+        self.assertIn("fora do Simples Nacional desde o início de atividade", texto)
+        self.assertIn("passa de 20% do limite", texto)
+
+    def test_um_mes_e_o_exemplo_da_revisao(self):
+        # 2.000.000 no 1º mês, aberta em dezembro: 1 mês, limite 400.000
+        texto = self.aviso("2000000", mes=12, ano=2027)
+        self.assertIn("(2027) de R$ 2.000.000,00, acima do limite proporcional de R$ 400.000,00", texto)
+        self.assertIn("R$ 400.000,00 × 1 mês,", texto)
+        self.assertIn("desde o início de atividade", texto)
+        # aberta em agosto: 5 meses, limite 2.000.000 (não passa), sublimite 1.500.000
+        texto = self.aviso("2000000", mes=8, ano=2027)
+        self.assertIn("acima do sublimite proporcional de R$ 1.500.000,00", texto)
+        self.assertIn("ICMS, ISS e IBS saem do DAS", texto)
+        self.assertEqual(self.aviso("2000000", mes=1, ano=2027), "")
+
+    def test_so_as_receitas_do_ano_de_inicio(self):
+        # aberta em dezembro de 2026, apuração em fevereiro de 2027: conta só dezembro
+        self.assertEqual(self.aviso("100000", "900000", "900000", mes=12, ano=2027), "")
+        texto = self.aviso("500000", "1", "1", mes=12, ano=2027)
+        self.assertIn("(2026) de R$ 500.000,00, acima do limite proporcional de R$ 400.000,00", texto)
+
+    def test_texto_do_ibs_sozinho(self):
+        texto = self.aviso("0", "700000", ano=2033)
+        self.assertIn("o IBS sai do DAS", texto)
+        self.assertIn("e é recolhido pelas regras", texto)
+
+    def test_entradas_invalidas(self):
+        from simples_nacional import avisos_inicio_atividade
+        for mes in (0, 13, True, "3", 3.0):
+            with self.subTest(mes=mes):
+                with self.assertRaisesRegex(ValueError, "mes_inicio"):
+                    avisos_inicio_atividade(["1"], mes, ano=2026)
+        with self.assertRaisesRegex(ValueError, "negativo"):
+            avisos_inicio_atividade(["1", "-1"], 3, ano=2026)
+        with self.assertRaises(TypeError):
+            avisos_inicio_atividade("1000", 3, ano=2026)
 
 
 if __name__ == "__main__":

@@ -3,21 +3,45 @@
 import argparse
 import sys
 from datetime import date
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
+from . import __version__
 from .calculo import (
     LimiteExcedido,
+    _meses,
     _rbt12_primeiros_meses,
     aliquota_efetiva,
     aliquota_inicio_atividade,
     anexo_por_fator_r,
     avisos,
+    avisos_inicio_atividade,
     faixa,
     fator_r,
     valor_devido,
     valor_devido_inicio_atividade,
 )
-from .formato import ler_numero, porcentagem, reais
-from .tabelas import vigencia
+from .formato import CENTAVO, ler_numero, porcentagem, reais
+from .tabelas import LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
+
+
+def _texto(percentual):
+    return f"{percentual}".replace(".", ",") + "%"
+
+
+def _efetiva_da_conta(efetiva, receita, valor):
+    """A efetiva com as casas (4 ou mais) que fecham a conta da linha no centavo:
+    R$ 1.000.000,00 × 13,1132% daria 131.132,00, não os 131.131,58 do mês."""
+    for casas in range(4, 27):
+        percentual = (efetiva * 100).quantize(Decimal(1).scaleb(-casas), ROUND_HALF_UP)
+        if (receita * percentual / 100).quantize(CENTAVO, ROUND_HALF_UP) == valor:
+            return _texto(percentual)
+    return porcentagem(efetiva)
+
+
+def _fator_r_truncado(fator):
+    """Fator R cortado na 4ª casa: 27,99999% arredondado mostraria 28,0000% ao
+    lado do Anexo V."""
+    return _texto((fator * 100).quantize(Decimal("0.0001"), ROUND_DOWN))
 
 
 def _numero(texto):
@@ -31,6 +55,13 @@ def _numero(texto):
 def _receitas(texto):
     """Receitas mensais separadas por ponto e vírgula: 30.000;50.000,00."""
     return [_numero(parte.strip()) for parte in texto.split(";")]
+
+
+def _mes(texto):
+    """Mês do calendário, 1 a 12, com o erro em português."""
+    if not texto.strip().isdigit() or not 1 <= int(texto) <= 12:
+        raise argparse.ArgumentTypeError(f"mês inválido: {texto!r} (de 1 a 12)")
+    return int(texto)
 
 
 _porcentagem = porcentagem  # nome da 0.3.0, mantido para quem já o importava
@@ -54,18 +85,25 @@ def main(argv=None):
                    help="início de atividade, no lugar de --rbt12 e --receita-mes: "
                         "receita de cada mês, do 1º de atividade até o de apuração, "
                         "separadas por ponto e vírgula (30.000;50.000)")
+    p.add_argument("--mes-inicio", type=_mes, metavar="1-12",
+                   help="com --receitas: mês do calendário em que a atividade começou, "
+                        "para conferir o limite e o sublimite proporcionais do ano "
+                        "(LC 123, art. 3º, §§ 2º e 11)")
     p.add_argument("--folha12", type=_numero,
                    help="folha de salários dos 12 meses do RBT12 (art. 18, § 24), "
                         "obrigatória com --anexo fator-r")
     p.add_argument("--ano", type=int, default=date.today().year,
                    help="ano-calendário do mês de apuração (padrão: o ano corrente); "
                         "a tabela de 2027 e 2028 tem a 6ª faixa 0,1 ponto menor")
+    p.add_argument("--version", action="version", version=f"simples-nacional {__version__}")
     a = p.parse_args(argv)
     if a.receitas is not None:
         if a.rbt12 is not None or a.receita_mes is not None:
             p.error("--receitas substitui --rbt12 e --receita-mes: use um ou outro")
     elif a.rbt12 is None or a.receita_mes is None:
         p.error("informe --rbt12 e --receita-mes, ou --receitas no início de atividade")
+    elif a.mes_inicio is not None:
+        p.error("--mes-inicio só vale com --receitas")
 
     linhas = []
     anexo = a.anexo.upper()
@@ -81,7 +119,7 @@ def main(argv=None):
                 p.error("--anexo fator-r exige --folha12")
             anexo = anexo_por_fator_r(a.folha12, a.rbt12)
             linhas.append(
-                f"Fator R: {porcentagem(fator_r(a.folha12, a.rbt12))} "
+                f"Fator R: {_fator_r_truncado(fator_r(a.folha12, a.rbt12))} "
                 f"-> Anexo {anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
         if a.receitas is None:
             rbt12, receita_mes = a.rbt12, a.receita_mes
@@ -96,6 +134,18 @@ def main(argv=None):
             valor = valor_devido_inicio_atividade(anexo, a.receitas, ano=a.ano)
             linhas.append(f"Início de atividade, {len(a.receitas)}º mês de atividade: {regra}"
                           + (f" = R$ {reais(rbt12)}" if rbt12 is not None else ""))
+            if a.mes_inicio is not None:
+                limites = avisos_inicio_atividade(a.receitas, a.mes_inicio, ano=a.ano)
+            elif sum(a.receitas[:12]) > SUBLIMITE_ICMS_ISS / 12 * len(a.receitas[:12]):
+                limites = [
+                    f"R$ {reais(sum(a.receitas[:12]))} em {_meses(len(a.receitas[:12]))} passa "
+                    f"de R$ {reais(SUBLIMITE_ICMS_ISS / 12)} por mês. No ano de início de "
+                    f"atividade, o limite é R$ {reais(LIMITE_RECEITA / 12)} e o sublimite "
+                    f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)}, vezes os meses do início até "
+                    "dezembro (LC 123, art. 3º, §§ 2º e 11): informe --mes-inicio para "
+                    "conferir."]
+            else:
+                limites = []
     except LimiteExcedido as erro:
         print(f"erro: {erro}", file=sys.stderr)
         return 2
@@ -110,10 +160,12 @@ def main(argv=None):
         + ("= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if rbt12 is not None
            else "= nominal da 1ª faixa"),
         f"Valor do mês: R$ {reais(valor)} "
-        f"= R$ {reais(receita_mes)} × {porcentagem(efetiva)}",
+        f"= R$ {reais(receita_mes)} × {_efetiva_da_conta(efetiva, receita_mes, valor)}",
     ]
     if rbt12 is not None:
         linhas += [f"Aviso: {texto}" for texto in avisos(rbt12, ano=a.ano)]
+    if a.receitas is not None:
+        linhas += [f"Aviso: {texto}" for texto in limites]
     linhas.append("Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o contador.")
     print("\n".join(linhas))
     return 0
