@@ -1,5 +1,7 @@
 # simples-nacional-br
 
+[![testes](https://github.com/peterwkdev-creator/simples-nacional-br/actions/workflows/testes.yml/badge.svg)](https://github.com/peterwkdev-creator/simples-nacional-br/actions/workflows/testes.yml)
+
 Alíquota efetiva, valor do mês e Fator R do **Simples Nacional**, conferidos
 faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
 (redação da LC 155/2016) e, para 2027 e 2028, da LC 214/2025. Python puro,
@@ -13,7 +15,8 @@ python -m unittest
 python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000
 ```
 
-Os dois rodam do checkout limpo, sem instalar nada. Testado com Python 3.12.
+Os dois rodam do checkout limpo, sem instalar nada. Testado a cada push com Python 3.9 a 3.13 (Linux) e
+3.13 (Windows).
 Sem `--ano`, a linha de comando usa o ano corrente e diz qual tabela usou.
 
 > **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
