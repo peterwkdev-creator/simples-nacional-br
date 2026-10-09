@@ -1,11 +1,11 @@
-"""Acceptance criteria 2 to 5 of the spec, plus input validation.
+"""Critérios de aceite 2 a 5 da especificação, mais a validação da entrada.
 
-Legal sources (LC 123/2006 as worded by LC 155/2016, read at the Chamber of
-Deputies on 09/10/2026, URL in test_tabelas.py):
-- art. 18, par. 1-A: effective rate formula.
-- art. 18, par. 2: first months of activity, bands proportional to the months.
-- art. 18, par. 5-J and 5-K: Fator R, payroll / revenue >= 28% -> Annex III.
-- art. 3, II: R$ 4.8 million ceiling; art. 13-A: R$ 3.6 million sublimit.
+Fontes legais (LC 123/2006 na redação da LC 155/2016, lida no site da Câmara
+dos Deputados em 09/10/2026, URL em test_tabelas.py):
+- art. 18, § 1º-A: fórmula da alíquota efetiva.
+- art. 18, § 2º: início de atividade, faixas proporcionais aos meses.
+- art. 18, §§ 5º-J e 5º-K: Fator R, folha / receita >= 28% -> Anexo III.
+- art. 3º, II: teto de R$ 4,8 milhões; art. 13-A: sublimite de R$ 3,6 milhões.
 """
 
 import unittest
@@ -23,10 +23,10 @@ from simples_nacional import (
 
 
 class TestCaso146(unittest.TestCase):
-    """mcp-fiscal-brasil issue #146: commerce, RBT12 R$ 4,500,000.
+    """mcp-fiscal-brasil, issue #146: comércio, RBT12 de R$ 4.500.000,00.
 
-    That tool applies the nominal 19% (R$ 855,000 a year). By the law:
-    (4.500.000 x 19% - 378.000) / 4.500.000 = 477.000 / 4.500.000 = 10.60%.
+    Aquela ferramenta aplica a nominal de 19% (R$ 855.000,00 no ano). Pela lei:
+    (4.500.000 x 19% - 378.000) / 4.500.000 = 477.000 / 4.500.000 = 10,60%.
     """
 
     def test_efetiva(self):
@@ -43,16 +43,16 @@ class TestCaso146(unittest.TestCase):
 class TestArredondamento(unittest.TestCase):
 
     def test_meio_centavo_sobe(self):
-        # 12,625 x 4% = 0,505 -> 0,51 (ROUND_HALF_UP; half-even would give 0,50)
+        # 12,625 x 4% = 0,505 -> 0,51 (ROUND_HALF_UP; half-even daria 0,50)
         self.assertEqual(valor_devido("I", 100_000, "12.625"), Decimal("0.51"))
 
     def test_efetiva_sem_arredondar(self):
-        # Annex III, band 4: (240.000 - 35.640) / 1.500.000 = 0,13624, all digits kept
+        # Anexo III, 4ª faixa: (240.000 - 35.640) / 1.500.000 = 0,13624, todos os dígitos
         self.assertEqual(aliquota_efetiva("III", 1_500_000), Decimal("0.13624"))
 
 
 class TestFatorR(unittest.TestCase):
-    """par. 5-J: Annex III when payroll / revenue is 'igual ou superior a 28%'."""
+    """§ 5º-J: Anexo III quando folha / receita for 'igual ou superior a 28%'."""
 
     def test_razao(self):
         self.assertEqual(fator_r(280_000, 1_000_000), Decimal("0.28"))
@@ -67,7 +67,7 @@ class TestFatorR(unittest.TestCase):
         self.assertEqual(anexo_por_fator_r(280_100, 1_000_000), "III")
 
     def test_um_centavo_abaixo_nao_arredonda_para_28(self):
-        # 279.999,99 / 1.000.000 = 27,999999%: still below 28%
+        # 279.999,99 / 1.000.000 = 27,999999%: ainda abaixo de 28%
         self.assertEqual(anexo_por_fator_r("279999.99", 1_000_000), "V")
 
     def test_folha_negativa(self):
@@ -114,12 +114,12 @@ class TestAvisos(unittest.TestCase):
 
 
 class TestInicioDeAtividade(unittest.TestCase):
-    """par. 2: bands proportional to the months of activity.
+    """§ 2º: faixas proporcionais aos meses de atividade.
 
-    Scaling the bands by n/12 is the same as annualizing the revenue by 12/n:
-    3 months, R$ 90,000 -> RBT12 360.000 (band 2 ceiling, Annex I).
-    Bands scaled: (90.000 x 7,3% - 5.940 x 3/12) / 90.000 = 5.085 / 90.000 = 5,65%
-    Annualized:   (360.000 x 7,3% - 5.940) / 360.000 = 20.340 / 360.000 = 5,65%
+    Proporcionalizar as faixas por n/12 é o mesmo que anualizar a receita por
+    12/n: 3 meses, R$ 90.000 -> RBT12 360.000 (teto da 2ª faixa, Anexo I).
+    Faixas reduzidas: (90.000 x 7,3% - 5.940 x 3/12) / 90.000 = 5.085 / 90.000 = 5,65%
+    Anualizado:       (360.000 x 7,3% - 5.940) / 360.000 = 20.340 / 360.000 = 5,65%
     """
 
     def test_anualiza(self):
@@ -139,7 +139,7 @@ class TestInicioDeAtividade(unittest.TestCase):
 class TestEntradas(unittest.TestCase):
 
     def test_float_recusado(self):
-        # float misses cents: 0.1 + 0.2 != 0.3
+        # float erra centavo: 0.1 + 0.2 != 0.3
         with self.assertRaises(TypeError):
             aliquota_efetiva("I", 4500000.0)
 

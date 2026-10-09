@@ -1,7 +1,7 @@
-"""Simples Nacional: effective rate, monthly amount and Fator R, checked
-against the official tables of LC 123/2006 (wording of LC 155/2016).
+"""Simples Nacional: alíquota efetiva, valor do mês e Fator R, conferidos
+contra as tabelas oficiais da LC 123/2006 (redação da LC 155/2016).
 
-The result is an estimate: it does not replace the PGDAS-D or an accountant.
+O resultado é estimativa: não substitui o PGDAS-D nem o contador.
 """
 
 from .calculo import (

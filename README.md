@@ -1,9 +1,9 @@
-# simples-nacional
+# simples-nacional-br
 
-Effective rate, monthly amount and Fator R for Brazil's **Simples Nacional**,
-checked band by band against the official tables of Lei Complementar 123/2006
-(wording of LC 155/2016). Pure Python, standard library only, `Decimal` from
-end to end.
+Alíquota efetiva, valor do mês e Fator R do **Simples Nacional**, conferidos
+faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
+(redação da LC 155/2016). Python puro, só a biblioteca padrão, `Decimal` do
+começo ao fim.
 
 ```bash
 python -m unittest
@@ -13,69 +13,69 @@ python -m unittest
 python -m simples_nacional --anexo I --rbt12 4500000 --receita-mes 375000
 ```
 
-Both run from a clean checkout, no install. Tested with Python 3.12.
+Os dois rodam do checkout limpo, sem instalar nada. Testado com Python 3.12.
 
-> **This is an estimate, not tax advice.** It does not replace the PGDAS-D or
-> an accountant. All examples use made-up numbers.
+> **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
+> contador. Todos os exemplos usam números inventados.
 
-## Why
+## Por quê
 
-The effective rate is not the rate printed in the annex. LC 123, art. 18,
+A alíquota efetiva não é a alíquota impressa no anexo. LC 123, art. 18,
 § 1º-A:
 
 ```
-effective rate = (RBT12 × nominal rate − deduction) / RBT12
+alíquota efetiva = (RBT12 × alíquota nominal − parcela a deduzir) / RBT12
 ```
 
-RBT12 is the gross revenue of the 12 months before the one being calculated.
-A trading company with RBT12 of R$ 4,500,000 is in the 6th band of Annex I
-(nominal 19%, deduction R$ 378,000):
+RBT12 é a receita bruta dos 12 meses anteriores ao período de apuração. Um
+comércio com RBT12 de R$ 4.500.000,00 está na 6ª faixa do Anexo I (nominal
+19%, parcela a deduzir R$ 378.000,00):
 
 ```
-(4,500,000 × 19% − 378,000) / 4,500,000 = 477,000 / 4,500,000 = 10.60%
+(4.500.000 × 19% − 378.000) / 4.500.000 = 477.000 / 4.500.000 = 10,60%
 ```
 
-Applying the nominal 19% instead gives R$ 855,000 a year where the law gives
-R$ 477,000. This is the error reported in
+Aplicar a nominal de 19% dá R$ 855.000,00 no ano, onde a lei dá
+R$ 477.000,00. É o erro relatado em
 [mcp-fiscal-brasil#146](https://github.com/DeHor-Labs/mcp-fiscal-brasil/issues/146).
 
-## What it covers
+## O que cobre
 
-| | Source (LC 123/2006, wording of LC 155/2016) |
+| | Fonte (LC 123/2006, redação da LC 155/2016) |
 |---|---|
-| Annexes I to V, six bands each: ceiling, nominal rate, deduction | Annexes I to V |
-| Effective rate | art. 18, § 1º-A |
-| Monthly amount: monthly revenue × effective rate | art. 18, § 3º |
-| Fator R: 12-month payroll ÷ RBT12; ≥ 28% → Annex III, else V | art. 18, §§ 5º-J, 5º-K, 5º-M, 24 |
-| R$ 4.8 million ceiling: an explained error, never a number | art. 3º, II |
-| R$ 3.6 million sublimit (ICMS and ISS paid outside the DAS): a warning | art. 13-A |
-| First months of activity: revenue annualized | art. 18, § 2º |
+| Anexos I a V, seis faixas cada: teto, alíquota nominal, parcela a deduzir | Anexos I a V |
+| Alíquota efetiva | art. 18, § 1º-A |
+| Valor do mês: receita do mês × alíquota efetiva | art. 18, § 3º |
+| Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
+| Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
+| Sublimite de R$ 3,6 milhões (ICMS e ISS fora do DAS): aviso | art. 13-A |
+| Início de atividade: receita anualizada | art. 18, § 2º |
 
-Every table value was read at the Brazilian Chamber of Deputies on
-09/10/2026 ([consolidated LC 155/2016](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
-the source sits next to the table in `simples_nacional/tabelas.py`.
+Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
+([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
+a fonte fica ao lado da tabela em `simples_nacional/tabelas.py`.
 
-Not covered: CNAE → annex mapping, the split of the amount by tax, state
-sublimits, the year in which the sublimit is crossed (art. 3º, §§ 11 to 15),
-the very first month of activity (ruled by a CGSN resolution), and MEI.
+Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
+sublimites estaduais, o ano em que o sublimite é ultrapassado (art. 3º,
+§§ 11 a 15), o primeiro mês de atividade (regido por resolução do CGSN) e o
+MEI.
 
-## How it is tested
+## Como é testado
 
-- One case per band of each annex (30), with the hand calculation written in
-  the test and re-done from the row's own numbers.
-- Every band ceiling stays in the lower band (the annex says "up to"); one
-  cent above moves up.
-- Fator R at 27.99%, 28% and 28.01%.
-- Mutation check: changing any of the 90 table values, one at a time, makes
-  at least one test fail.
+- Um caso por faixa de cada anexo (30), com a conta à mão escrita no teste e
+  refeita a partir dos números da própria linha.
+- O teto de cada faixa fica na faixa de baixo (o anexo diz "até"); um
+  centavo acima sobe de faixa.
+- Fator R em 27,99%, 28% e 28,01%.
+- Teste de mutação: trocar qualquer um dos 90 valores da tabela, um de cada
+  vez, derruba pelo menos um teste.
 
-Rounding: the law sets no rule. The effective rate keeps every digit; the
-monthly amount is rounded to cents with `ROUND_HALF_UP`.
+Arredondamento: a lei não fixa regra. A alíquota efetiva guarda todos os
+dígitos; o valor do mês é arredondado em centavos com `ROUND_HALF_UP`.
 
-## As a library
+## Como biblioteca
 
 ```python
-from decimal import Decimal
 from simples_nacional import aliquota_efetiva, valor_devido, anexo_por_fator_r, avisos
 
 aliquota_efetiva("I", 4_500_000)               # Decimal('0.106')
@@ -84,10 +84,10 @@ anexo_por_fator_r(280_000, 1_000_000)           # 'III'
 avisos(4_500_000)                               # ['RBT12 acima do sublimite ...']
 ```
 
-Amounts are `Decimal`, `int` or `str`; `float` is refused, because it misses
-cents. RBT12 above R$ 4.8 million raises `LimiteExcedido` (a `ValueError`).
-Messages are in Portuguese, the language of the people who use the numbers.
+Valores em `Decimal`, `int` ou `str`; `float` é recusado, porque erra
+centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um
+`ValueError`).
 
-## License
+## Licença
 
 [MIT](LICENSE).

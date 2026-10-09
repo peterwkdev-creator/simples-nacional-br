@@ -1,17 +1,17 @@
-"""Each band of each annex (I to V) against the official table, by hand.
+"""Cada faixa de cada anexo (I a V) contra a tabela oficial, com a conta à mão.
 
-Source of every number below: LC 123/2006, Annexes I to V, as worded by
-LC 155/2016 (in force since 01/01/2018). Read at the Brazilian Chamber of
-Deputies on 09/10/2026:
+Fonte de todos os números abaixo: LC 123/2006, Anexos I a V, na redação da
+LC 155/2016 (vigência desde 01/01/2018). Lido no site da Câmara dos
+Deputados em 09/10/2026:
 https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html
 
-Effective rate (LC 123, art. 18, par. 1-A): (RBT12 x Aliq - PD) / RBT12.
-The `conta` column is the hand calculation; the test re-does it with the
-row's own numbers, so a typo in the expected value fails too.
+Alíquota efetiva (LC 123, art. 18, § 1º-A): (RBT12 x Aliq - PD) / RBT12.
+A coluna `conta` é a conta à mão; o teste a refaz com os números da própria
+linha, então um erro de digitação no valor esperado também derruba o teste.
 
-Monthly amount = monthly revenue x effective rate, rounded to cents with
-ROUND_HALF_UP. The law does not set a rounding rule; this is the library's
-convention, and the only rounding it does.
+Valor do mês = receita do mês x alíquota efetiva, arredondado em centavos com
+ROUND_HALF_UP. A lei não fixa regra de arredondamento; esta é a convenção da
+biblioteca, e o único arredondamento que ela faz.
 """
 
 import unittest
@@ -21,8 +21,8 @@ from simples_nacional import faixa, aliquota_efetiva, valor_devido
 
 RECEITA_MES = Decimal("31234.56")
 
-# (annex, band, RBT12, nominal rate %, deduction, hand calculation,
-#  effective rate, amount for RECEITA_MES)
+# (anexo, faixa, RBT12, alíquota nominal %, parcela a deduzir, conta à mão,
+#  alíquota efetiva, valor para RECEITA_MES)
 CASOS = [
     ("I", 1, "150000", "4.00", "0", "(150.000 x 4% - 0) / 150.000", "0.04", "1249.38"),
     ("I", 2, "300000", "7.30", "5940", "(21.900 - 5.940) / 300.000", "0.0532", "1661.68"),
@@ -56,7 +56,7 @@ CASOS = [
     ("V", 6, "4500000", "30.50", "540000", "(1.372.500 - 540.000) / 4.500.000", "0.185", "5778.39"),
 ]
 
-# Upper limit of each band, the same in all five annexes ("Ate" / "De ... a").
+# Teto de cada faixa, o mesmo nos cinco anexos ("Até" / "De ... a").
 TETOS = ["180000.00", "360000.00", "720000.00", "1800000.00", "3600000.00", "4800000.00"]
 
 
@@ -68,7 +68,7 @@ class TestFaixasPorAnexo(unittest.TestCase):
                          {(a, n) for a in ("I", "II", "III", "IV", "V") for n in range(1, 7)})
 
     def test_conta_a_mao_confere(self):
-        # Guards the expected values themselves, independent of the library.
+        # Confere os próprios valores esperados, sem passar pela biblioteca.
         for anexo, n, rbt12, aliq, pd, conta, efetiva, valor in CASOS:
             with self.subTest(anexo=anexo, faixa=n, conta=conta):
                 rbt12, aliq, pd = Decimal(rbt12), Decimal(aliq) / 100, Decimal(pd)
@@ -98,7 +98,7 @@ class TestFaixasPorAnexo(unittest.TestCase):
 
 
 class TestFronteiras(unittest.TestCase):
-    """The ceiling belongs to the lower band: the annex says 'Ate' (up to)."""
+    """O teto pertence à faixa de baixo: o anexo diz 'Até'."""
 
     def test_teto_fica_na_faixa_de_baixo(self):
         for anexo in ("I", "II", "III", "IV", "V"):

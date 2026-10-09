@@ -1,4 +1,4 @@
-# Secrets (standard block)
+# Segredo (bloco padrão)
 .env*
 !.env.example
 *backup_codes*

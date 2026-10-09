@@ -1,4 +1,4 @@
-"""The command line, run as a user would run it (python -m simples_nacional)."""
+"""A linha de comando, rodada como o usuário roda (python -m simples_nacional)."""
 
 import os
 import subprocess
@@ -25,7 +25,7 @@ class TestCli(unittest.TestCase):
         self.assertIn("R$ 39.750,00", r.stdout)
         self.assertIn("art. 18", r.stdout)
         self.assertIn("estimativa", r.stdout.lower())
-        # above the R$ 3.6 million sublimit: the warning is printed
+        # acima do sublimite de R$ 3,6 milhões: o aviso sai impresso
         self.assertIn("3.600.000,00", r.stdout)
 
     def test_fator_r_escolhe_o_anexo(self):

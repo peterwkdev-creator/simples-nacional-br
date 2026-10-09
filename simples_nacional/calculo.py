@@ -1,7 +1,7 @@
-"""Effective rate, monthly amount, Fator R and limits (LC 123/2006, art. 18).
+"""Alíquota efetiva, valor do mês, Fator R e limites (LC 123/2006, art. 18).
 
-Decimal from end to end; the only rounding is the monthly amount, to cents
-with ROUND_HALF_UP (the law sets no rounding rule: library convention).
+Decimal do começo ao fim; o único arredondamento é o do valor do mês, em
+centavos com ROUND_HALF_UP (a lei não fixa regra: convenção da biblioteca).
 """
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -12,120 +12,120 @@ CENTAVO = Decimal("0.01")
 
 
 class LimiteExcedido(ValueError):
-    """RBT12 above R$ 4.8 million: no Simples Nacional rate applies."""
+    """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
 
 
 def reais(valor):
-    """Brazilian currency format: 4800000 -> '4.800.000,00'."""
+    """Formato brasileiro: 4800000 -> '4.800.000,00'."""
     texto = f"{Decimal(valor).quantize(CENTAVO, ROUND_HALF_UP):,.2f}"
     return texto.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
 def _decimal(valor, nome):
     if isinstance(valor, float):
-        raise TypeError(f"{nome}: use Decimal, int or str, not float (float misses cents)")
+        raise TypeError(f"{nome}: use Decimal, int ou str, não float (float erra centavo)")
     if isinstance(valor, bool) or not isinstance(valor, (Decimal, int, str)):
-        raise TypeError(f"{nome}: expected Decimal, int or str, got {type(valor).__name__}")
+        raise TypeError(f"{nome}: esperado Decimal, int ou str, veio {type(valor).__name__}")
     try:
         numero = Decimal(valor)
     except InvalidOperation:
-        raise ValueError(f"{nome}: not a number: {valor!r}") from None
+        raise ValueError(f"{nome}: não é número: {valor!r}") from None
     if not numero.is_finite():
-        raise ValueError(f"{nome}: not a finite number: {valor!r}")
+        raise ValueError(f"{nome}: não é número finito: {valor!r}")
     return numero
 
 
 def _anexo(anexo):
     chave = anexo.upper() if isinstance(anexo, str) else anexo
     if chave not in ANEXOS:
-        raise ValueError(f"anexo: expected one of I, II, III, IV, V, got {anexo!r}")
+        raise ValueError(f"anexo: esperado I, II, III, IV ou V, veio {anexo!r}")
     return ANEXOS[chave]
 
 
 def faixa(anexo, rbt12):
-    """Band of the annex for the 12-month gross revenue (ceiling included)."""
+    """Faixa do anexo para a receita bruta de 12 meses (o teto é da faixa)."""
     faixas = _anexo(anexo)
     rbt12 = _decimal(rbt12, "rbt12")
     if rbt12 <= 0:
         raise ValueError(
-            "rbt12 must be positive; for the first months of activity use "
-            "rbt12_inicio_atividade (LC 123, art. 18, par. 2)")
+            "rbt12 tem de ser positivo; nos primeiros meses de atividade use "
+            "rbt12_inicio_atividade (LC 123, art. 18, § 2º)")
     if rbt12 > LIMITE_RECEITA:
         raise LimiteExcedido(
             f"RBT12 de R$ {reais(rbt12)} acima do limite de R$ {reais(LIMITE_RECEITA)} "
-            "(LC 123, art. 3, II): nao ha aliquota do Simples Nacional para essa "
-            "receita; a empresa fica sujeita a exclusao do regime.")
+            "(LC 123, art. 3º, II): não há alíquota do Simples Nacional para essa "
+            "receita; a empresa fica sujeita à exclusão do regime.")
     for f in faixas:
         if rbt12 <= f.teto:
             return f
-    raise AssertionError("unreachable: the last band ends at the limit")
+    raise AssertionError("inalcançável: a última faixa termina no limite")
 
 
 def aliquota_efetiva(anexo, rbt12):
-    """(RBT12 x Aliq - PD) / RBT12, LC 123, art. 18, par. 1-A. Not rounded."""
+    """(RBT12 × Aliq − PD) / RBT12, LC 123, art. 18, § 1º-A. Sem arredondar."""
     f = faixa(anexo, rbt12)
     rbt12 = Decimal(rbt12)
     return (rbt12 * f.aliquota - f.parcela_deduzir) / rbt12
 
 
 def valor_devido(anexo, rbt12, receita_mes):
-    """Revenue of the month x effective rate (art. 18, par. 3), in cents.
+    """Receita do mês × alíquota efetiva (art. 18, § 3º), em centavos.
 
-    Above the R$ 3.6 mi sublimit this is the federal DAS only: ICMS/ISS are
-    paid outside it (see avisos).
+    Acima do sublimite de R$ 3,6 milhões é só o DAS federal: ICMS e ISS são
+    recolhidos fora dele (ver avisos).
     """
     receita_mes = _decimal(receita_mes, "receita_mes")
     if receita_mes < 0:
-        raise ValueError("receita_mes must not be negative")
+        raise ValueError("receita_mes não pode ser negativa")
     efetiva = aliquota_efetiva(anexo, rbt12)
     return (receita_mes * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 
 def fator_r(folha12, rbt12):
-    """Payroll of the last 12 months / RBT12 (art. 18, par. 5-K and 24)."""
+    """Folha dos últimos 12 meses ÷ RBT12 (art. 18, §§ 5º-K e 24)."""
     folha12 = _decimal(folha12, "folha12")
     rbt12 = _decimal(rbt12, "rbt12")
     if folha12 < 0:
-        raise ValueError("folha12 must not be negative")
+        raise ValueError("folha12 não pode ser negativa")
     if rbt12 <= 0:
-        raise ValueError("rbt12 must be positive")
+        raise ValueError("rbt12 tem de ser positivo")
     return folha12 / rbt12
 
 
 def anexo_por_fator_r(folha12, rbt12):
-    """'III' if Fator R >= 28% (art. 18, par. 5-J), else 'V'. No rounding."""
+    """'III' se o Fator R for 28% ou mais (art. 18, § 5º-J), senão 'V'. Sem arredondar."""
     return "III" if fator_r(folha12, rbt12) >= FATOR_R_MINIMO else "V"
 
 
 def rbt12_inicio_atividade(receita_acumulada, meses):
-    """RBT12 for a company with fewer than 12 months of activity.
+    """RBT12 de empresa com menos de 12 meses de atividade.
 
-    Art. 18, par. 2 scales the bands by meses/12; annualizing the revenue by
-    12/meses gives the same effective rate. `meses` counts the months before
-    the one being calculated (1 to 11). The first month itself is ruled by a
-    CGSN resolution, not covered here.
+    O art. 18, § 2º proporcionaliza as faixas por meses/12; anualizar a
+    receita por 12/meses dá a mesma alíquota efetiva. `meses` conta os meses
+    anteriores ao de apuração (1 a 11). O primeiro mês é regido por
+    resolução do CGSN e não é coberto aqui.
     """
     receita_acumulada = _decimal(receita_acumulada, "receita_acumulada")
     if isinstance(meses, bool) or not isinstance(meses, int) or not 1 <= meses <= 11:
-        raise ValueError("meses must be an int from 1 to 11; with 12 or more use the actual RBT12")
+        raise ValueError("meses tem de ser int de 1 a 11; com 12 ou mais use o RBT12 real")
     if receita_acumulada < 0:
-        raise ValueError("receita_acumulada must not be negative")
+        raise ValueError("receita_acumulada não pode ser negativa")
     return receita_acumulada * 12 / meses
 
 
 def avisos(rbt12):
-    """Warnings about the limits, in Portuguese (the users' language)."""
+    """Avisos sobre os limites."""
     rbt12 = _decimal(rbt12, "rbt12")
     saida = []
     if rbt12 > LIMITE_RECEITA:
         saida.append(
             f"RBT12 acima de R$ {reais(LIMITE_RECEITA)}: fora do Simples Nacional "
-            "(LC 123, art. 3, II).")
+            "(LC 123, art. 3º, II).")
     elif rbt12 > SUBLIMITE_ICMS_ISS:
         saida.append(
             f"RBT12 acima do sublimite de R$ {reais(SUBLIMITE_ICMS_ISS)} (LC 123, "
-            "art. 13-A): ICMS e ISS sao recolhidos fora do DAS, pelas regras do "
-            "estado e do municipio; o valor acima e so a parte federal (na 6a "
-            "faixa a reparticao da lei ja da 0% a ICMS e ISS). A regra do ano em "
-            "que o sublimite e ultrapassado (art. 3, par. 11 a 15) nao e calculada aqui.")
+            "art. 13-A): ICMS e ISS são recolhidos fora do DAS, pelas regras do "
+            "estado e do município; o valor acima é só a parte federal (na 6ª "
+            "faixa a repartição da lei já dá 0% a ICMS e ISS). A regra do ano em "
+            "que o sublimite é ultrapassado (art. 3º, §§ 11 a 15) não é calculada aqui.")
     return saida

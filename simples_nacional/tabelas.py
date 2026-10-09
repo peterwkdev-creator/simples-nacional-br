@@ -1,12 +1,12 @@
-"""Official tables of the Simples Nacional (Brazilian simplified tax regime).
+"""Tabelas oficiais do Simples Nacional.
 
-Source: Lei Complementar 123/2006, Annexes I to V, as worded by Lei
-Complementar 155/2016, art. 2 (in force since 01/01/2018). Read at the
-Chamber of Deputies (consolidated LC 155 text) on 09/10/2026:
+Fonte: Lei Complementar 123/2006, Anexos I a V, na redação da Lei
+Complementar 155/2016, art. 2º (vigência desde 01/01/2018). Lido no site da
+Câmara dos Deputados (texto atualizado da LC 155) em 09/10/2026:
 https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html
 
-Each row: (ceiling of the 12-month gross revenue, nominal rate, deduction),
-all in R$. The ceiling belongs to its own band ("Ate 180.000,00").
+Cada linha: (teto da receita bruta de 12 meses, alíquota nominal, parcela a
+deduzir), tudo em R$. O teto pertence à própria faixa ("Até 180.000,00").
 """
 
 from decimal import Decimal
@@ -28,7 +28,7 @@ def _anexo(*linhas):
 
 
 ANEXOS = {
-    # Anexo I - Comercio
+    # Anexo I - Comércio
     "I": _anexo(
         ("180000.00", "4.00", "0"),
         ("360000.00", "7.30", "5940.00"),
@@ -37,7 +37,7 @@ ANEXOS = {
         ("3600000.00", "14.30", "87300.00"),
         ("4800000.00", "19.00", "378000.00"),
     ),
-    # Anexo II - Industria
+    # Anexo II - Indústria
     "II": _anexo(
         ("180000.00", "4.50", "0"),
         ("360000.00", "7.80", "5940.00"),
@@ -46,7 +46,7 @@ ANEXOS = {
         ("3600000.00", "14.70", "85500.00"),
         ("4800000.00", "30.00", "720000.00"),
     ),
-    # Anexo III - locacao de bens moveis e servicos fora do art. 18, par. 5-C
+    # Anexo III - locação de bens móveis e serviços fora do art. 18, § 5º-C
     "III": _anexo(
         ("180000.00", "6.00", "0"),
         ("360000.00", "11.20", "9360.00"),
@@ -55,7 +55,7 @@ ANEXOS = {
         ("3600000.00", "21.00", "125640.00"),
         ("4800000.00", "33.00", "648000.00"),
     ),
-    # Anexo IV - servicos do art. 18, par. 5-C
+    # Anexo IV - serviços do art. 18, § 5º-C
     "IV": _anexo(
         ("180000.00", "4.50", "0"),
         ("360000.00", "9.00", "8100.00"),
@@ -64,7 +64,7 @@ ANEXOS = {
         ("3600000.00", "22.00", "183780.00"),
         ("4800000.00", "33.00", "828000.00"),
     ),
-    # Anexo V - servicos do art. 18, par. 5-I
+    # Anexo V - serviços do art. 18, § 5º-I
     "V": _anexo(
         ("180000.00", "15.50", "0"),
         ("360000.00", "18.00", "4500.00"),
@@ -75,14 +75,14 @@ ANEXOS = {
     ),
 }
 
-# LC 123, art. 3, II (wording of LC 155/2016): small business up to R$ 4.8 mi.
+# LC 123, art. 3º, II (redação da LC 155/2016): EPP até R$ 4,8 milhões.
 LIMITE_RECEITA = Decimal("4800000.00")
 
-# LC 123, art. 13-A (wording of LC 155/2016): above R$ 3.6 mi, ICMS and ISS
-# are paid outside the DAS. In every annex the 6th band's tax split gives 0%
-# to ICMS/ISS (the "-" in the "Percentual de Reparticao" tables).
+# LC 123, art. 13-A (redação da LC 155/2016): acima de R$ 3,6 milhões, ICMS e
+# ISS são recolhidos fora do DAS. Em todos os anexos a repartição da 6ª faixa
+# dá 0% a ICMS/ISS (o "-" nas tabelas de "Percentual de Repartição").
 SUBLIMITE_ICMS_ISS = Decimal("3600000.00")
 
-# LC 123, art. 18, par. 5-J: Annex III when payroll / revenue is "igual ou
-# superior a 28%"; otherwise Annex V (par. 5-M). Payroll per par. 24.
+# LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou
+# superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24.
 FATOR_R_MINIMO = Decimal("0.28")
