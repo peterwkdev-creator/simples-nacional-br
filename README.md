@@ -52,7 +52,7 @@ R$ 477.000,00. É o erro relatado em
 | Valor do mês: receita do mês × alíquota efetiva | art. 18, § 3º |
 | Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
 | Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
-| Sublimite de R$ 3,6 milhões (ICMS e ISS fora do DAS): aviso | art. 13-A |
+| Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
 | Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
 
@@ -69,7 +69,8 @@ aqui.
 
 Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
 sublimites estaduais, o ano em que o sublimite é ultrapassado (art. 3º,
-§§ 11 a 15), a empresa aberta no ano anterior ao da opção (Res. CGSN 140,
+§§ 11 a 15), o ICMS e o ISS que seguem no DAS com RBT12 acima de R$ 3,6
+milhões e receita do ano abaixo dele (Res. CGSN 140, art. 21, III, b), a empresa aberta no ano anterior ao da opção (Res. CGSN 140,
 art. 22, § 4º) e o MEI.
 
 ## Como é testado
@@ -108,7 +109,7 @@ aliquota_efetiva("I", 4_500_000, ano=2026)      # Decimal('0.106')
 aliquota_efetiva("I", 4_500_000, ano=2027)      # Decimal('0.105')
 valor_devido("I", 4_500_000, "375000", ano=2026) # Decimal('39750.00')
 anexo_por_fator_r(280_000, 1_000_000)           # 'III'
-avisos(4_500_000)                               # ['RBT12 acima do sublimite ...']
+avisos(4_500_000, ano=2026)                     # ['RBT12 acima do sublimite ...']
 
 # início de atividade: receita de cada mês, do 1º até o de apuração
 valor_devido_inicio_atividade("I", [30_000, 50_000], ano=2026)  # Decimal('2825.00')

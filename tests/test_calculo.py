@@ -105,6 +105,8 @@ class TestAvisos(unittest.TestCase):
 
     def test_sem_aviso_ate_o_sublimite(self):
         self.assertEqual(avisos(3_600_000), [])
+        for ano in (2026, 2027, 2033):
+            self.assertEqual(avisos(3_600_000, ano=ano), [])
 
     def test_sublimite(self):
         texto = " ".join(avisos("3600000.01"))
@@ -112,8 +114,43 @@ class TestAvisos(unittest.TestCase):
         self.assertIn("ICMS", texto)
         self.assertIn("ISS", texto)
 
+    def test_sublimite_ate_2026_depende_da_receita_do_ano(self):
+        # Res. CGSN 140, art. 21, III, b: sublimite não excedido no ano, ICMS e
+        # ISS seguem no DAS pela 5ª faixa; o excesso se mede no ano (art. 24)
+        for texto in (" ".join(avisos(4_500_000)), " ".join(avisos(4_500_000, ano=2026))):
+            self.assertIn("receita acumulada no ano-calendário", texto)
+            self.assertIn("art. 21, III, b", texto)
+            self.assertIn("5ª faixa", texto)
+            self.assertIn("art. 24", texto)
+            self.assertNotIn("IBS", texto)
+
+    def test_sublimite_a_partir_de_2027_inclui_o_ibs(self):
+        # LC 214, art. 517 (efeito em 01/01/2027): o art. 13-A passa a valer
+        # para o IBS; a Res. CGSN 190 revoga o art. 21, III, b
+        texto = " ".join(avisos(4_500_000, ano=2027))
+        self.assertIn("ICMS, ISS e IBS", texto)
+        self.assertIn("LC 214/2025, art. 517", texto)
+        self.assertIn("CBS", texto)
+        self.assertIn("receita acumulada no ano-calendário", texto)
+        self.assertNotIn("art. 21, III, b", texto)
+
+    def test_sublimite_a_partir_de_2033_so_o_ibs(self):
+        # LC 214, art. 518 (efeito em 01/01/2033): o art. 13-A fala só do IBS
+        texto = " ".join(avisos(4_500_000, ano=2033))
+        self.assertIn("art. 518", texto)
+        self.assertIn("o IBS sai do DAS", texto)
+        self.assertNotIn("ICMS", texto)
+        self.assertNotIn("ISS ", texto)
+
+    def test_ano_invalido(self):
+        with self.assertRaises(TypeError):
+            avisos(4_500_000, ano="2027")
+        with self.assertRaises(ValueError):
+            avisos(4_500_000, ano=2017)
+
     def test_acima_do_limite(self):
         self.assertIn("4.800.000,00", " ".join(avisos(4_800_001)))
+        self.assertIn("4.800.000,00", " ".join(avisos(4_800_001, ano=2027)))
 
 
 class TestInicioDeAtividade(unittest.TestCase):

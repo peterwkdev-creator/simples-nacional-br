@@ -30,6 +30,13 @@ class TestCli(unittest.TestCase):
         self.assertIn("estimativa", r.stdout.lower())
         # acima do sublimite de R$ 3,6 milhões: o aviso sai impresso
         self.assertIn("3.600.000,00", r.stdout)
+        self.assertIn("art. 21, III, b", r.stdout)
+
+    def test_aviso_do_sublimite_segue_o_ano(self):
+        r = rodar("--ano", "2027", "--anexo", "I", "--rbt12", "4500000", "--receita-mes", "375000")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("ICMS, ISS e IBS", r.stdout)
+        self.assertNotIn("art. 21, III, b", r.stdout)
 
     def test_fator_r_escolhe_o_anexo(self):
         r = rodar("--ano", "2026", "--anexo", "fator-r", "--folha12", "280000",

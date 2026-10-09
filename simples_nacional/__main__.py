@@ -113,7 +113,7 @@ def main(argv=None):
         f"= R$ {reais(receita_mes)} × {porcentagem(efetiva)}",
     ]
     if rbt12 is not None:
-        linhas += [f"Aviso: {texto}" for texto in avisos(rbt12)]
+        linhas += [f"Aviso: {texto}" for texto in avisos(rbt12, ano=a.ano)]
     linhas.append("Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o contador.")
     print("\n".join(linhas))
     return 0
