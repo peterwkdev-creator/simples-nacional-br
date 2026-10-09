@@ -290,5 +290,18 @@ class TestAno(unittest.TestCase):
         self.assertIn("2018", str(erro.exception))
 
 
+class TestEntradasErradas(unittest.TestCase):
+
+    def test_anexo_que_nao_e_texto(self):
+        with self.assertRaisesRegex(ValueError, "^anexo: esperado I"):
+            aliquota_efetiva(["I"], 100_000, ano=2026)
+
+    def test_receitas_que_nao_sao_lista(self):
+        for receitas in ({1: 30_000}, {30_000}, "30000"):
+            with self.subTest(receitas=type(receitas).__name__):
+                with self.assertRaisesRegex(TypeError, "^receitas: lista"):
+                    valor_devido_inicio_atividade("I", receitas, ano=2026)
+
+
 if __name__ == "__main__":
     unittest.main()

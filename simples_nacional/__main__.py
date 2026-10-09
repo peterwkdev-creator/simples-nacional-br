@@ -40,7 +40,8 @@ def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python -m simples_nacional",
         description="Alíquota efetiva e valor do mês no Simples Nacional "
-                    "(LC 123/2006, redação da LC 155/2016). Estimativa: não "
+                    "(LC 123/2006, redação da LC 155/2016; de 2027 em diante, tabelas "
+                    "da LC 214/2025). Estimativa: não "
                     "substitui o PGDAS-D nem o contador.")
     p.add_argument("--anexo", required=True,
                    help="I, II, III, IV, V, ou fator-r (escolhe III ou V pela folha)")
@@ -71,6 +72,8 @@ def main(argv=None):
     try:
         linhas.append(f"Tabela do ano-calendário {a.ano}: {vigencia(a.ano).fonte} "
                       "(para outro ano de apuração, use --ano)")
+        if anexo != "FATOR-R" and a.folha12 is not None:
+            p.error("--folha12 só vale com --anexo fator-r")
         if anexo == "FATOR-R":
             if a.receitas is not None:
                 p.error("--anexo fator-r com --receitas não é calculado: informe o anexo (III ou V)")

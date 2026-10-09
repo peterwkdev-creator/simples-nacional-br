@@ -4,9 +4,10 @@ Decimal do começo ao fim; o único arredondamento é o do valor do mês, em
 centavos com ROUND_HALF_UP (a lei não fixa regra: convenção da biblioteca).
 """
 
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from collections.abc import Sequence
+from decimal import Decimal, ROUND_HALF_UP
 
-from .formato import CENTAVO, reais
+from .formato import CENTAVO, para_decimal, reais
 from .tabelas import FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
 
 # A partir deste ano-calendário o RBT12 é o dos 12 meses antecedentes ao mês
@@ -19,30 +20,12 @@ class LimiteExcedido(ValueError):
     """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
 
 
-def para_decimal(valor, nome):
-    """Decimal exato a partir de Decimal, int ou str; float e bool são recusados.
-
-    `nome` abre a mensagem de erro (`rbt12: não é número: 'abc'`).
-    """
-    if isinstance(valor, float):
-        raise TypeError(f"{nome}: use Decimal, int ou str, não float (float erra centavo)")
-    if isinstance(valor, bool) or not isinstance(valor, (Decimal, int, str)):
-        raise TypeError(f"{nome}: esperado Decimal, int ou str, veio {type(valor).__name__}")
-    try:
-        numero = Decimal(valor)
-    except InvalidOperation:
-        raise ValueError(f"{nome}: não é número: {valor!r}") from None
-    if not numero.is_finite():
-        raise ValueError(f"{nome}: não é número finito: {valor!r}")
-    return numero
-
-
 _decimal = para_decimal  # nome da 0.3.0, mantido para quem já o importava
 
 
 def _anexo(anexo, ano):
     anexos = vigencia(ano).anexos
-    chave = anexo.upper() if isinstance(anexo, str) else anexo
+    chave = anexo.upper() if isinstance(anexo, str) else None
     if chave not in anexos:
         raise ValueError(f"anexo: esperado I, II, III, IV ou V, veio {anexo!r}")
     return anexos[chave]
@@ -140,7 +123,7 @@ def _rbt12_primeiros_meses(receitas, ano):
     RBT12 None quer dizer alíquota nominal da 1ª faixa.
     """
     vigencia(ano)
-    if isinstance(receitas, (str, bytes)) or not hasattr(receitas, "__len__"):
+    if isinstance(receitas, (str, bytes)) or not isinstance(receitas, Sequence):
         raise TypeError("receitas: lista com a receita de cada mês, do 1º de atividade ao de apuração")
     receitas = [_decimal(r, "receitas") for r in receitas]
     if any(r < 0 for r in receitas):

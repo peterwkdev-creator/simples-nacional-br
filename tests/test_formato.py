@@ -4,8 +4,10 @@ Quem integra a biblioteca (a CLI dela e outros sistemas) lê número digitado
 e mostra valor e alíquota sem reescrever a regra do ponto de milhar.
 """
 
+import re
 import unittest
 from decimal import Decimal
+from pathlib import Path
 
 import simples_nacional
 from simples_nacional import ler_numero, para_decimal, porcentagem, reais
@@ -29,7 +31,8 @@ class TestLerNumero(unittest.TestCase):
                 self.assertEqual(ler_numero(texto), esperado)
 
     def test_ambiguo_e_recusado_com_valueerror(self):
-        for texto in ("1,000.50", "1.0000", "1.000.0", "1.5.0", "abc", "", "1 000"):
+        # 0.500: grupo de milhar não começa em zero
+        for texto in ("1,000.50", "1.0000", "1.000.0", "1.5.0", "abc", "", "1 000", "0.500"):
             with self.subTest(texto=texto):
                 with self.assertRaisesRegex(ValueError, "número inválido"):
                     ler_numero(texto)
@@ -42,6 +45,15 @@ class TestPorcentagem(unittest.TestCase):
         self.assertEqual(porcentagem(Decimal("0.143037778")), "14,3038%")
         self.assertEqual(porcentagem(Decimal("0.000000005")), "0,0000%")
         self.assertEqual(porcentagem(Decimal("0.000000500")), "0,0001%")  # meio sobe
+
+    def test_int_e_str_como_no_decimal_e_erro_em_portugues(self):
+        self.assertEqual(porcentagem("0.05"), "5,0000%")
+        self.assertEqual(porcentagem(1), "100,0000%")
+        self.assertEqual(reais("1000.5"), "1.000,50")
+        with self.assertRaisesRegex(TypeError, "^fracao: .*float"):
+            porcentagem(0.05)
+        with self.assertRaisesRegex(ValueError, "^valor: não é número"):
+            reais("abc")
 
 
 class TestParaDecimal(unittest.TestCase):
@@ -67,7 +79,10 @@ class TestNomesPublicos(unittest.TestCase):
         for nome in ("ler_numero", "para_decimal", "porcentagem", "reais"):
             with self.subTest(nome=nome):
                 self.assertIn(nome, simples_nacional.__all__)
-        self.assertEqual(simples_nacional.__version__, "0.3.1")
+        pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
+            encoding="utf-8")
+        versao, = re.findall(r'^version = "(.+)"$', pyproject, re.M)
+        self.assertEqual(simples_nacional.__version__, versao)
 
     def test_reais(self):
         self.assertEqual(reais(Decimal("4800000")), "4.800.000,00")

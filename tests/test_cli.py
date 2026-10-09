@@ -133,5 +133,31 @@ class TestCli(unittest.TestCase):
         self.assertIn("--receitas", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+class TestCliEntradas(unittest.TestCase):
+
+    def test_folha12_sem_fator_r_e_erro(self):
+        r = rodar("--ano", "2026", "--anexo", "I", "--rbt12", "100000", "--receita-mes", "1",
+                  "--folha12", "28000")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--folha12 só vale com --anexo fator-r", r.stderr)
+
+    def test_fator_r_com_receitas_e_erro(self):
+        r = rodar("--ano", "2026", "--anexo", "fator-r", "--receitas", "30.000;50.000",
+                  "--folha12", "28000")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("informe o anexo (III ou V)", r.stderr)
+
+    def test_receitas_acima_do_limite(self):
+        # 2º mês de 2026: RBT12 = 500.000 x 12 = 6 milhões
+        r = rodar("--ano", "2026", "--anexo", "I", "--receitas", "500.000;500.000")
+        self.assertEqual(r.returncode, 2)
+        self.assertEqual(r.stdout, "")
+        self.assertIn("erro:", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_ajuda_cita_a_lc_214(self):
+        self.assertIn("LC 214/2025", rodar("--help").stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
