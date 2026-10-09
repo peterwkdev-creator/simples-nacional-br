@@ -6,9 +6,8 @@ centavos com ROUND_HALF_UP (a lei não fixa regra: convenção da biblioteca).
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from .formato import CENTAVO, reais
 from .tabelas import FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
-
-CENTAVO = Decimal("0.01")
 
 # A partir deste ano-calendário o RBT12 é o dos 12 meses antecedentes ao mês
 # anterior ao de apuração (LC 214, art. 517, nova redação da LC 123, art. 18,
@@ -20,13 +19,11 @@ class LimiteExcedido(ValueError):
     """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
 
 
-def reais(valor):
-    """Formato brasileiro: 4800000 -> '4.800.000,00'."""
-    texto = f"{Decimal(valor).quantize(CENTAVO, ROUND_HALF_UP):,.2f}"
-    return texto.replace(",", "_").replace(".", ",").replace("_", ".")
+def para_decimal(valor, nome):
+    """Decimal exato a partir de Decimal, int ou str; float e bool são recusados.
 
-
-def _decimal(valor, nome):
+    `nome` abre a mensagem de erro (`rbt12: não é número: 'abc'`).
+    """
     if isinstance(valor, float):
         raise TypeError(f"{nome}: use Decimal, int ou str, não float (float erra centavo)")
     if isinstance(valor, bool) or not isinstance(valor, (Decimal, int, str)):
@@ -38,6 +35,9 @@ def _decimal(valor, nome):
     if not numero.is_finite():
         raise ValueError(f"{nome}: não é número finito: {valor!r}")
     return numero
+
+
+_decimal = para_decimal  # nome da 0.3.0, mantido para quem já o importava
 
 
 def _anexo(anexo, ano):

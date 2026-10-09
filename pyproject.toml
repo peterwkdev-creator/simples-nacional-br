@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simples-nacional"
-version = "0.3.0"
+version = "0.3.1"
 description = "Simples Nacional: alíquota efetiva, valor do mês e Fator R, conferidos contra a LC 123/2006 e a LC 214/2025"
 readme = "README.md"
 license = { text = "MIT" }

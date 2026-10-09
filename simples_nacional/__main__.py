@@ -1,10 +1,8 @@
 """Linha de comando: python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000"""
 
 import argparse
-import re
 import sys
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
 
 from .calculo import (
     LimiteExcedido,
@@ -15,32 +13,19 @@ from .calculo import (
     avisos,
     faixa,
     fator_r,
-    reais,
     valor_devido,
     valor_devido_inicio_atividade,
 )
+from .formato import ler_numero, porcentagem, reais
 from .tabelas import vigencia
 
 
-_MILHAR = re.compile(r"-?\d{1,3}(\.\d{3})+(,\d+)?")  # 360.000 e 1.000,50
-_VIRGULA = re.compile(r"-?\d+(,\d+)?")                # 1000,50
-_PONTO = re.compile(r"-?\d+(\.\d{1,2})?")             # 4500000.00
-
-
 def _numero(texto):
-    """Aceita 4500000, 4500000.00, 1000,50, 1.000,50 e 360.000 (milhar).
-
-    Ponto seguido de três dígitos é milhar, como se escreve no Brasil; o que
-    não casa com nenhum formato (1,000.50, 1.0000) é recusado, não adivinhado.
-    """
-    if _MILHAR.fullmatch(texto) or _VIRGULA.fullmatch(texto):
-        normal = texto.replace(".", "").replace(",", ".")
-    elif _PONTO.fullmatch(texto):
-        normal = texto
-    else:
-        raise argparse.ArgumentTypeError(
-            f"número inválido: {texto!r} (use 1.000,50 ou 1000.50)")
-    return Decimal(normal)
+    """ler_numero com o erro que o argparse mostra (uso: código 2)."""
+    try:
+        return ler_numero(texto)
+    except ValueError as erro:
+        raise argparse.ArgumentTypeError(str(erro)) from None
 
 
 def _receitas(texto):
@@ -48,9 +33,7 @@ def _receitas(texto):
     return [_numero(parte.strip()) for parte in texto.split(";")]
 
 
-def _porcentagem(fracao):
-    texto = f"{(fracao * 100).quantize(Decimal('0.0001'), ROUND_HALF_UP)}"
-    return texto.replace(".", ",") + "%"
+_porcentagem = porcentagem  # nome da 0.3.0, mantido para quem já o importava
 
 
 def main(argv=None):
@@ -95,7 +78,7 @@ def main(argv=None):
                 p.error("--anexo fator-r exige --folha12")
             anexo = anexo_por_fator_r(a.folha12, a.rbt12)
             linhas.append(
-                f"Fator R: {_porcentagem(fator_r(a.folha12, a.rbt12))} "
+                f"Fator R: {porcentagem(fator_r(a.folha12, a.rbt12))} "
                 f"-> Anexo {anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
         if a.receitas is None:
             rbt12, receita_mes = a.rbt12, a.receita_mes
@@ -118,13 +101,13 @@ def main(argv=None):
 
     linhas += [
         f"Anexo {anexo}, {f.numero}ª faixa (até R$ {reais(f.teto)}): "
-        f"alíquota nominal {_porcentagem(f.aliquota)}, "
+        f"alíquota nominal {porcentagem(f.aliquota)}, "
         f"parcela a deduzir R$ {reais(f.parcela_deduzir)}",
-        f"Alíquota efetiva: {_porcentagem(efetiva)} "
+        f"Alíquota efetiva: {porcentagem(efetiva)} "
         + ("= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if rbt12 is not None
            else "= nominal da 1ª faixa"),
         f"Valor do mês: R$ {reais(valor)} "
-        f"= R$ {reais(receita_mes)} × {_porcentagem(efetiva)}",
+        f"= R$ {reais(receita_mes)} × {porcentagem(efetiva)}",
     ]
     if rbt12 is not None:
         linhas += [f"Aviso: {texto}" for texto in avisos(rbt12)]

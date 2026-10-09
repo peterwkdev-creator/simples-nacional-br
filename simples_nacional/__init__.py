@@ -15,10 +15,12 @@ from .calculo import (
     avisos,
     faixa,
     fator_r,
+    para_decimal,
     rbt12_inicio_atividade,
     valor_devido,
     valor_devido_inicio_atividade,
 )
+from .formato import ler_numero, porcentagem, reais
 from .tabelas import (
     ANEXOS,
     ANEXOS_2027_2028,
@@ -30,7 +32,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     "ANEXOS",
@@ -48,7 +50,11 @@ __all__ = [
     "avisos",
     "faixa",
     "fator_r",
+    "ler_numero",
+    "para_decimal",
+    "porcentagem",
     "rbt12_inicio_atividade",
+    "reais",
     "valor_devido",
     "valor_devido_inicio_atividade",
     "vigencia",

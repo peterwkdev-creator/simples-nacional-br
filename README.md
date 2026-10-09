@@ -125,6 +125,18 @@ Números aceitos: `4500000`, `4500000.00`, `1000,50`, `1.000,50` e
 `360.000` (ponto seguido de três dígitos é milhar). O que é ambíguo, como
 `1,000.50`, dá erro em vez de virar outro número.
 
+A mesma leitura e a saída no formato brasileiro são públicas desde a 0.3.1,
+para quem integra a biblioteca num sistema:
+
+```python
+from simples_nacional import ler_numero, para_decimal, porcentagem, reais
+
+ler_numero("360.000")                 # Decimal('360000'); ambíguo: ValueError
+para_decimal("1000.50", "receita")    # Decimal('1000.50'); float: TypeError
+porcentagem(Decimal("0.0565"))        # '5,6500%'
+reais(Decimal("4800000"))             # '4.800.000,00'
+```
+
 Valores em `Decimal`, `int` ou `str`; `float` é recusado, porque erra
 centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um
 `ValueError`).
