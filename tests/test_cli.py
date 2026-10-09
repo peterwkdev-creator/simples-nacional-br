@@ -82,5 +82,56 @@ class TestCli(unittest.TestCase):
         self.assertIn("2018", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+    def test_ponto_de_milhar_sem_virgula(self):
+        # 360.000 é trezentos e sessenta mil, não 360: 2ª faixa, 5,65%; 10.000 x 5,65% = 565,00
+        r = rodar("--ano", "2026", "--anexo", "I", "--rbt12", "360.000", "--receita-mes", "10.000")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("5,6500%", r.stdout)
+        self.assertIn("R$ 565,00", r.stdout)
+
+    def test_ponto_decimal_com_centavos(self):
+        # 1000.50 x 4% = 40,02 (o formato do exemplo 4500000.00 continua valendo)
+        r = rodar("--ano", "2026", "--anexo", "I", "--rbt12", "150000.00", "--receita-mes", "1000.50")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("R$ 40,02", r.stdout)
+
+    def test_formato_ambiguo_recusado(self):
+        for valor in ("1,000.50", "1.0000", "1.000.0"):
+            with self.subTest(valor=valor):
+                r = rodar("--ano", "2026", "--anexo", "I", "--rbt12", "150000", "--receita-mes", valor)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("inválido", r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+
+    def test_inicio_de_atividade_2026(self):
+        # 2º mês: 30.000 x 12 = 360.000 -> 5,65%; 50.000 x 5,65% = 2.825,00
+        r = rodar("--ano", "2026", "--anexo", "I", "--receitas", "30.000;50.000")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("2º mês de atividade", r.stdout)
+        self.assertIn("R$ 360.000,00", r.stdout)
+        self.assertIn("art. 22", r.stdout)
+        self.assertIn("R$ 2.825,00", r.stdout)
+
+    def test_inicio_de_atividade_2027_primeira_faixa(self):
+        # 1º mês em 2027: 1ª faixa do Anexo I, 4%; 400.000 x 4% = 16.000,00
+        r = rodar("--ano", "2027", "--anexo", "I", "--receitas", "400000")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("1ª faixa", r.stdout)
+        self.assertIn("Res. CGSN 190", r.stdout)
+        self.assertIn("R$ 16.000,00", r.stdout)
+
+    def test_receitas_exclui_rbt12_e_receita_mes(self):
+        for args in (["--rbt12", "150000"], ["--receita-mes", "1000"]):
+            with self.subTest(args=args):
+                r = rodar("--ano", "2026", "--anexo", "I", "--receitas", "30000", *args)
+                self.assertEqual(r.returncode, 2)
+                self.assertNotIn("Traceback", r.stderr)
+
+    def test_sem_rbt12_nem_receitas(self):
+        r = rodar("--ano", "2026", "--anexo", "I", "--receita-mes", "1000")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--receitas", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
 if __name__ == "__main__":
     unittest.main()

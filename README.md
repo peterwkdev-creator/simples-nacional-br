@@ -28,7 +28,10 @@ A alíquota efetiva não é a alíquota impressa no anexo. LC 123, art. 18,
 alíquota efetiva = (RBT12 × alíquota nominal − parcela a deduzir) / RBT12
 ```
 
-RBT12 é a receita bruta dos 12 meses anteriores ao período de apuração. Um
+RBT12 é a receita bruta dos 12 meses anteriores ao período de apuração (a
+partir de 2027, dos 12 meses antecedentes ao mês anterior: para apurar março,
+de fevereiro do ano anterior a janeiro; LC 123, art. 18, § 1º, na redação da
+LC 214/2025). Um
 comércio com RBT12 de R$ 4.500.000,00 está na 6ª faixa do Anexo I (nominal
 19%, parcela a deduzir R$ 378.000,00):
 
@@ -50,7 +53,7 @@ R$ 477.000,00. É o erro relatado em
 | Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
 | Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
 | Sublimite de R$ 3,6 milhões (ICMS e ISS fora do DAS): aviso | art. 13-A |
-| Início de atividade: receita anualizada | art. 18, § 2º |
+| Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
 
 Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
@@ -66,8 +69,8 @@ aqui.
 
 Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
 sublimites estaduais, o ano em que o sublimite é ultrapassado (art. 3º,
-§§ 11 a 15), o primeiro mês de atividade (regido por resolução do CGSN) e o
-MEI.
+§§ 11 a 15), a empresa aberta no ano anterior ao da opção (Res. CGSN 140,
+art. 22, § 4º) e o MEI.
 
 ## Como é testado
 
@@ -78,9 +81,19 @@ MEI.
 - Fator R em 27,99%, 28% e 28,01%.
 - A 6ª faixa de 2027 e 2028 nos cinco anexos, com a conta à mão; as faixas 1
   a 5 iguais às de hoje; 2018, 2026, 2029 e depois com a tabela de hoje.
+- Início de atividade: 1º, 2º, 4º e 12º mês até 2026; 1º, 2º, 3º, 5º e 13º
+  a partir de 2027, com o mês anterior ao de apuração fora da média.
 - Teste de mutação: trocar qualquer um dos 90 valores da tabela, uma das
-  cinco nominais de 2027 ou uma fronteira de ano, um de cada vez, derruba
-  pelo menos um teste.
+  cinco nominais de 2027, uma fronteira de ano ou uma regra do início de
+  atividade, um de cada vez, derruba pelo menos um teste.
+
+As regras do início de atividade foram lidas em 09/10/2026 no portal de
+normas da Receita:
+[Res. CGSN 140/2018](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/92278)
+e [Res. CGSN 190/2026](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/152832).
+Média zero no início de atividade (nenhuma venda ainda) dá a alíquota da
+1ª faixa: a fórmula não se define com RBT12 zero, e essa é uma convenção da
+biblioteca.
 
 Arredondamento: a lei não fixa regra. A alíquota efetiva guarda todos os
 dígitos; o valor do mês é arredondado em centavos com `ROUND_HALF_UP`.
@@ -95,7 +108,22 @@ aliquota_efetiva("I", 4_500_000, ano=2027)      # Decimal('0.105')
 valor_devido("I", 4_500_000, "375000", ano=2026) # Decimal('39750.00')
 anexo_por_fator_r(280_000, 1_000_000)           # 'III'
 avisos(4_500_000)                               # ['RBT12 acima do sublimite ...']
+
+# início de atividade: receita de cada mês, do 1º até o de apuração
+valor_devido_inicio_atividade("I", [30_000, 50_000], ano=2026)  # Decimal('2825.00')
+valor_devido_inicio_atividade("I", [400_000], ano=2027)         # Decimal('16000.00'), 1ª faixa
 ```
+
+Na linha de comando, o início de atividade vai em `--receitas`, separadas
+por ponto e vírgula, no lugar de `--rbt12` e `--receita-mes`:
+
+```bash
+python -m simples_nacional --ano 2026 --anexo I --receitas "30.000;50.000"
+```
+
+Números aceitos: `4500000`, `4500000.00`, `1000,50`, `1.000,50` e
+`360.000` (ponto seguido de três dígitos é milhar). O que é ambíguo, como
+`1,000.50`, dá erro em vez de virar outro número.
 
 Valores em `Decimal`, `int` ou `str`; `float` é recusado, porque erra
 centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um

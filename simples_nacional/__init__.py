@@ -7,14 +7,17 @@ O resultado é estimativa: não substitui o PGDAS-D nem o contador.
 """
 
 from .calculo import (
+    DEFASAGEM_DESDE,
     LimiteExcedido,
     aliquota_efetiva,
+    aliquota_inicio_atividade,
     anexo_por_fator_r,
     avisos,
     faixa,
     fator_r,
     rbt12_inicio_atividade,
     valor_devido,
+    valor_devido_inicio_atividade,
 )
 from .tabelas import (
     ANEXOS,
@@ -27,7 +30,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "ANEXOS",
@@ -38,12 +41,15 @@ __all__ = [
     "Faixa",
     "Vigencia",
     "LimiteExcedido",
+    "DEFASAGEM_DESDE",
     "aliquota_efetiva",
+    "aliquota_inicio_atividade",
     "anexo_por_fator_r",
     "avisos",
     "faixa",
     "fator_r",
     "rbt12_inicio_atividade",
     "valor_devido",
+    "valor_devido_inicio_atividade",
     "vigencia",
 ]
