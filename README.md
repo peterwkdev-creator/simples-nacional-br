@@ -14,7 +14,7 @@ a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
 alíquota efetiva, valor do mês, a parte de cada tributo e, com o Fator R,
 a folha que leva ao Anexo III e quanto muda o DAS. Nenhum número sai do
 seu computador. Na primeira visita o navegador baixa
-cerca de 6 MB (o Python do Pyodide; a biblioteca são 55 KB); depois, cada
+cerca de 6 MB (o Python do Pyodide; a biblioteca são 61 KB); depois, cada
 conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 
 > **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
@@ -23,7 +23,7 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.3.0"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.0"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
@@ -103,6 +103,8 @@ R$ 477.000,00. É o erro relatado em
   140, Anexos VI e VII) e, para as outras, o anexo pela LC 123, art. 18,
   com o Fator R quando ele decide; a indústria vai ao Anexo I de 2027 em
   diante.
+- Servidor MCP, para o Claude e outros assistentes chamarem as mesmas
+  contas: valor do mês, repartição, Fator R e CNAE.
 
 Fora do escopo, entre outros: sublimites estaduais, exportação e MEI. A
 lista completa e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
@@ -316,6 +318,61 @@ python -m simples_nacional.cnae 6920-6/01 1091102 --ano 2027
 - O nome de cada uma das 1.332 subclasses vem da lista do IBGE (CNAE 2.3);
   código inexistente dá `ValueError`.
 
+### Servidor MCP
+
+As mesmas contas como servidor [MCP](https://modelcontextprotocol.io)
+(Model Context Protocol), para o Claude e outros assistentes chamarem. Roda
+no seu computador, pela entrada e saída padrão, só com a biblioteca padrão;
+nenhum número sai dali. Depois do `pip install` acima:
+
+```bash
+python -m simples_nacional.mcp
+```
+
+No Claude Code:
+
+```bash
+claude mcp add --transport stdio simples-nacional -- python -m simples_nacional.mcp
+```
+
+No Claude Desktop, em `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "simples-nacional": {
+      "command": "python",
+      "args": ["-m", "simples_nacional.mcp"]
+    }
+  }
+}
+```
+
+`python` tem de ser o Python em que a biblioteca foi instalada; se o
+aplicativo não o acha, ponha o caminho completo, que
+`python -c "import sys; print(sys.executable)"` mostra.
+
+Quatro ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
+
+| Ferramenta | Argumentos | Devolve |
+|---|---|---|
+| `calcular_das` | `anexo`, `rbt12`, `receita_mes`, `ano`; `icms_iss_no_das` | faixa, alíquota efetiva, valor do mês e avisos |
+| `repartir_das` | `anexo`, `rbt12`, `receita_mes`, `ano` | o valor do mês por tributo e a alíquota de cada um |
+| `planejar_fator_r` | `folha12`, `rbt12`, `receita_mes`, `ano`; `icms_iss_no_das` | o Fator R, a folha que leva a 28% e o valor do mês nos Anexos V e III |
+| `enquadrar_cnae` | `cnae`, `ano`; `folha12`, `rbt12` | a situação da subclasse, o anexo e o fundamento |
+
+- `ano` é obrigatório em todas, pelo mesmo motivo da API: é o ano do mês de
+  apuração, não o de hoje. Os depois do ponto e vírgula são opcionais.
+- Valores em reais, como número JSON ou texto no formato brasileiro
+  (`"4.500.000,00"`); a conta é em `Decimal`, sem passar por `float`.
+- A resposta vem em texto, para o assistente ler, e em JSON
+  (`structuredContent`), com os valores em texto (`"39750.00"`) e o aviso
+  de que é estimativa. Entrada errada ou RBT12 acima do limite volta como
+  erro da ferramenta, com a mensagem da biblioteca.
+- Protocolo: atende a forma com `initialize` (revisões 2025-06-18 e
+  2025-11-25) e a sem estado, com `server/discover` (2026-07-28), no mesmo
+  processo.
+
 ## Fontes e limites
 
 | | Fonte (LC 123/2006, redação da LC 155/2016) |
@@ -381,7 +438,8 @@ e o MEI.
   `planejamento.py`, o planejamento do Fator R; `cnae.py`, o enquadramento
   CNAE → anexo, com os dados em `cnae_dados.py` e os nomes do IBGE em
   `cnae_subclasses.tsv`; `formato.py`, a leitura e a escrita de números no
-  formato brasileiro; `__main__.py`, a linha de comando.
+  formato brasileiro; `__main__.py`, a linha de comando; `mcp.py`, o
+  servidor MCP.
 - `tests/`: os testes, inclusive o que roda os exemplos deste README.
 - `vitrine/`: a página do "Experimente no navegador". O GitHub Actions a
   monta e publica a cada push que muda a biblioteca, a página ou os testes
@@ -397,8 +455,10 @@ só muda de forma incompatível numa versão maior (2.0). Função, constante ou
 argumento novo sai numa versão menor (1.1); correção, numa de correção
 (1.0.1). Valor de tabela que muda por lei ou resolução nova sai numa versão
 menor, com a fonte e a data no [CHANGELOG.md](CHANGELOG.md); o mesmo vale
-para o anexo de uma subclasse da CNAE, que é leitura da biblioteca. Nomes
-com `_` na frente e o texto dos avisos não fazem parte da promessa.
+para o anexo de uma subclasse da CNAE, que é leitura da biblioteca. No servidor MCP, o nome
+de cada ferramenta, seus argumentos e as chaves do `structuredContent`
+seguem a mesma regra. Nomes com `_` na frente e o texto dos avisos e das
+respostas não fazem parte da promessa.
 
 ## Contribuir
 

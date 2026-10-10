@@ -3,6 +3,22 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.4.0 — 10/10
+
+- Novo: servidor MCP (Model Context Protocol), `python -m
+  simples_nacional.mcp`, por stdio e só com a biblioteca padrão. Quatro
+  ferramentas, todas cálculo puro e com `ano` obrigatório: `calcular_das`,
+  `repartir_das`, `planejar_fator_r` e `enquadrar_cnae`.
+- Atende a forma com `initialize` (revisões 2025-06-18 e 2025-11-25) e a
+  sem estado, com `server/discover` (2026-07-28), no mesmo processo.
+  Especificação consultada em 10/10/2026.
+- Valores como número JSON ou texto no formato brasileiro, lidos em
+  `Decimal`; a resposta traz texto e `structuredContent`, com o aviso de
+  estimativa. Entrada errada e RBT12 acima do limite voltam como erro da
+  ferramenta (`isError`).
+- README: como ligar no Claude Code e no Claude Desktop.
+- Sem quebra: nada da 1.3.0 mudou.
+
 ## 1.3.0 — 10/10
 
 - Novo: enquadramento CNAE → anexo, no módulo `simples_nacional.cnae`.
