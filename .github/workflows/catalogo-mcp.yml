@@ -1,0 +1,49 @@
+# Catálogo oficial de servidores MCP (registry.modelcontextprotocol.io).
+# A cada Release publicada: monta o pacote MCPB (mcpb/montar.py), anexa à
+# Release, confere o hash do que o GitHub serve e publica o server.json com o
+# login OIDC do GitHub, sem segredo. Comandos conferidos em 10/10/2026
+# (mcp-publisher v1.8.1; docs/modelcontextprotocol-io/github-actions.mdx do
+# modelcontextprotocol/registry).
+name: Catálogo MCP
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write  # anexar o .mcpb à Release
+  id-token: write  # login OIDC no catálogo
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Testes
+        run: python -m unittest -q
+      - name: A tag é a versão da biblioteca
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: test "$TAG" = "v$(python -c 'import simples_nacional as s; print(s.__version__)')"
+      - name: Montar o pacote e o server.json
+        run: python mcpb/montar.py --saida dist
+      - name: Anexar o pacote à Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" dist/*.mcpb --clobber
+      - name: O endereço do server.json serve o mesmo arquivo
+        run: |
+          url=$(python -c "import json; print(json.load(open('dist/server.json'))['packages'][0]['identifier'])")
+          sha=$(python -c "import json; print(json.load(open('dist/server.json'))['packages'][0]['fileSha256'])")
+          test "$(curl -sfL "$url" | sha256sum | cut -d' ' -f1)" = "$sha"
+      - name: mcp-publisher v1.8.1
+        run: curl -sfL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - name: Validar e publicar
+        run: |
+          ./mcp-publisher validate dist/server.json
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish dist/server.json

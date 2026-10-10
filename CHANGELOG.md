@@ -3,6 +3,17 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.4.1 — 10/10
+
+- Novo: o servidor MCP também como pacote MCPB, anexado a cada Release
+  (`simples-nacional-br-<versão>.mcpb`), e publicado no catálogo oficial de
+  servidores MCP como `io.github.peterwkdev-creator/simples-nacional-br`.
+  O código da biblioteca não muda.
+- `mcpb/montar.py` monta o pacote, reprodutível, só com a biblioteca padrão.
+  Um teste roda o servidor de dentro do zip, pelo comando do manifest, fora
+  do checkout. O workflow `catalogo-mcp.yml` anexa o pacote, confere o hash
+  do que o GitHub serve e publica.
+
 ## 1.4.0 — 10/10
 
 - Novo: servidor MCP (Model Context Protocol), `python -m

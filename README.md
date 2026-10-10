@@ -23,7 +23,7 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.0"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.1"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
@@ -352,6 +352,13 @@ No Claude Desktop, em `claude_desktop_config.json`:
 aplicativo não o acha, ponha o caminho completo, que
 `python -c "import sys; print(sys.executable)"` mostra.
 
+Sem `pip`: cada Release traz o pacote
+`simples-nacional-br-<versão>.mcpb`, que o Claude Desktop instala como
+extensão (abra o arquivo nele). Precisa de Python 3.9 ou mais novo no
+computador. O mesmo pacote está no
+[catálogo oficial de servidores MCP](https://registry.modelcontextprotocol.io)
+como `io.github.peterwkdev-creator/simples-nacional-br`.
+
 Quatro ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
 
 | Ferramenta | Argumentos | Devolve |
@@ -444,6 +451,9 @@ e o MEI.
 - `vitrine/`: a página do "Experimente no navegador". O GitHub Actions a
   monta e publica a cada push que muda a biblioteca, a página ou os testes
   (`.github/workflows/pages.yml`).
+- `mcpb/`: o pacote MCPB do servidor MCP e o `server.json` do catálogo. O
+  GitHub Actions os monta, anexa o pacote à Release e publica no catálogo a
+  cada versão (`.github/workflows/catalogo-mcp.yml`).
 - `docs/`: o GIF do começo deste README.
 - [`CHANGELOG.md`](CHANGELOG.md): o que mudou em cada versão.
 
