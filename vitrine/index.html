@@ -49,6 +49,10 @@
   textarea, input[type=text] { width: 100%; padding: .6rem; font: inherit;
          color: var(--texto); background: var(--fundo); border: 1px solid var(--borda); border-radius: 6px; }
   textarea { min-height: 11rem; resize: vertical; }
+  /* Campo de arquivo: o botão do navegador sai com ~21 px; aqui fica como o secundário. */
+  input[type=file] { font: inherit; color: var(--texto); }
+  input[type=file]::file-selector-button { font: inherit; min-height: 2.5rem; padding: .5rem 1.1rem; margin-right: .75rem;
+         border-radius: 6px; border: 1px solid var(--borda); background: transparent; color: var(--texto); cursor: pointer; }
   button { font: inherit; min-height: 2.5rem; padding: .5rem 1.1rem; border-radius: 6px;
            border: 1px solid var(--botao); background: var(--botao); color: var(--botao-texto); cursor: pointer; }
   button.secundario { background: transparent; color: var(--texto); border-color: var(--borda); }
@@ -102,6 +106,7 @@
   <footer>
     <p id="privacidade"></p>
     <p id="rodape" class="suave"></p>
+    <p id="links" class="suave" hidden></p>
     <p class="suave"><a id="repositorio" href="#"></a> · <span id="motor"></span></p>
   </footer>
 </div>
@@ -110,10 +115,10 @@
 // Textos da página; o vitrine.json troca qualquer um ("textos") e o idioma ("lang").
 const PADRAO = {
   carregando: "Carregando o Python no navegador (só na primeira visita)…",
-  pronto: "Pronto. Edite o exemplo ou cole o seu e clique no botão.",
+  pronto: "Pronto. Edite o exemplo ou use o seu e clique no botão.",
   executando: "Rodando…",
   erro: "Não deu para rodar: ",
-  alterado: "O texto mudou: rode de novo para ver o resultado.",
+  alterado: "A entrada mudou: rode de novo para ver o resultado.",
   exemplo: "Usar o exemplo",
   privacidade: "O que você digita não sai do seu computador: a biblioteca roda aqui, no navegador, sem servidor.",
   marcado: "Texto com os trechos marcados",
@@ -140,13 +145,17 @@ function montarCampos() {
     else { el = document.createElement("input"); el.type = c.tipo === "arquivo" ? "file" : "text"; }
     el.id = "campo-" + c.nome;
     el.name = c.nome;
-    if (c.tipo !== "arquivo") { el.value = c.exemplo; el.addEventListener("input", desatualizar); }
+    if (c.tipo === "arquivo") {
+      if (c.aceita) el.accept = c.aceita;
+      el.addEventListener("change", desatualizar);
+    } else { el.value = c.exemplo; el.addEventListener("input", desatualizar); }
     caixa.append(rotulo, el);
   }
 }
 
 function usarExemplo() {
-  for (const c of cfg.campos) if (c.tipo !== "arquivo") $("campo-" + c.nome).value = c.exemplo;
+  // Campo de arquivo vazio roda com o exemplo (lerEntradas): limpar é usar o exemplo.
+  for (const c of cfg.campos) $("campo-" + c.nome).value = c.tipo === "arquivo" ? "" : c.exemplo;
   desatualizar();
   $("rodar").focus();
 }
@@ -287,6 +296,16 @@ async function iniciar() {
     $("descricao").textContent = cfg.descricao;
     $("privacidade").textContent = textos.privacidade;
     $("rodape").textContent = cfg.rodape || "";
+    // o montar.py já recusa href fora de https://; a página confere de novo
+    const links = (cfg.links || []).filter(l => /^https:\/\//.test(l.href));
+    links.forEach((l, i) => {
+      if (i) $("links").append(" · ");
+      const a = document.createElement("a");
+      a.href = l.href;
+      a.textContent = l.texto;
+      $("links").append(a);
+    });
+    $("links").hidden = !links.length;
     $("repositorio").href = cfg.repositorio;
     $("repositorio").textContent = textos.codigo;
     $("motor").textContent = textos.motor;

@@ -136,14 +136,31 @@ class Contrato(unittest.TestCase):
             "sem exemplo": lambda c: c["campos"][0].pop("exemplo"),
             "campo marcado inexistente": lambda c: c.update(campo_marcado="outro"),
             "chave errada": lambda c: c.update(titlo="x"),
+            "chave de campo errada": lambda c: c["campos"][0].update(rotlo="x"),
+            "aceita fora de arquivo": lambda c: c["campos"][0].update(aceita=".txt"),
             "repositório sem https": lambda c: c.update(repositorio="github.com/x"),
             "campos vazio": lambda c: c.update(campos=[]),
+            "link javascript:": lambda c: c.update(links=[{"texto": "x", "href": "javascript:alert(1)"}]),
+            "link http": lambda c: c.update(links=[{"texto": "x", "href": "http://exemplo.com"}]),
+            "link sem texto": lambda c: c.update(links=[{"href": "https://exemplo.com"}]),
+            "link com chave errada": lambda c: c.update(links=[{"texto": "x", "href": "https://e.com", "url": "x"}]),
+            "links fora de lista": lambda c: c.update(links={"texto": "x"}),
         }
         for nome, estragar in casos.items():
             with self.subTest(nome):
                 c = json.loads(json.dumps(CFG))
                 estragar(c)
                 self.assertNotEqual(montar.conferir_config(c), [], nome)
+
+    def test_campo_de_arquivo_com_aceita_passa(self):
+        c = json.loads(json.dumps(CFG))
+        c["campos"].append({"nome": "a", "rotulo": "A", "tipo": "arquivo", "exemplo": "x", "aceita": ".jsonl"})
+        self.assertEqual(montar.conferir_config(c), [])
+
+    def test_links_https_passam(self):
+        c = json.loads(json.dumps(CFG))
+        c["links"] = [{"texto": "Lista de espera", "href": "https://github.com/dono/repo/issues/1"}]
+        self.assertEqual(montar.conferir_config(c), [])
 
 
 if __name__ == "__main__":

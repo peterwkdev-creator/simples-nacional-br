@@ -25,8 +25,9 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 TIPOS = {"textarea", "texto", "arquivo"}
+CHAVES_CAMPO = {"nome", "rotulo", "tipo", "exemplo"}
 OBRIGATORIAS = {"titulo", "descricao", "pacote", "campos", "botao", "repositorio"}
-OPCIONAIS = {"lang", "campo_marcado", "textos", "rodape"}
+OPCIONAIS = {"lang", "campo_marcado", "textos", "rodape", "links"}
 CHAVES_RESULTADO = {"resumo", "aviso", "marcas", "tabela"}
 DATA_FIXA = (2020, 1, 1, 0, 0, 0)
 
@@ -50,6 +51,12 @@ def conferir_config(cfg):
                 erros.append(f"campos[{i}]: {k!r} precisa ser texto")
         if c.get("tipo") not in TIPOS:
             erros.append(f"campos[{i}]: tipo {c.get('tipo')!r} fora de {sorted(TIPOS)}")
+        # "aceita" (ex.: ".jsonl") filtra o seletor; só existe no campo de arquivo.
+        permitidas = CHAVES_CAMPO | ({"aceita"} if c.get("tipo") == "arquivo" else set())
+        for k in sorted(c.keys() - permitidas):
+            erros.append(f"campos[{i}]: chave desconhecida {k!r}")
+        if "aceita" in c and not isinstance(c["aceita"], str):
+            erros.append(f"campos[{i}]: 'aceita' precisa ser texto")
         nomes.append(c.get("nome"))
     if len(set(nomes)) != len(nomes):
         erros.append("nome de campo repetido")
@@ -62,6 +69,22 @@ def conferir_config(cfg):
             erros.append("campo_marcado não pode ser do tipo 'arquivo' (a página não o mostra)")
     if not str(cfg.get("repositorio", "")).startswith("https://"):
         erros.append("'repositorio' precisa começar com https://")
+    # links do rodapé (SN, 10/10: a lista de espera numa issue): só https://,
+    # para um javascript: no vitrine.json não virar link na página.
+    links = cfg.get("links", [])
+    if not isinstance(links, list):
+        erros.append("'links' precisa ser lista")
+        links = []
+    for i, l in enumerate(links):
+        if not isinstance(l, dict):
+            erros.append(f"links[{i}] não é objeto")
+            continue
+        for k in sorted(l.keys() - {"texto", "href"}):
+            erros.append(f"links[{i}]: chave desconhecida {k!r}")
+        if not isinstance(l.get("texto"), str) or not l.get("texto"):
+            erros.append(f"links[{i}]: 'texto' precisa ser texto não vazio")
+        if not str(l.get("href", "")).startswith("https://"):
+            erros.append(f"links[{i}]: 'href' precisa começar com https://")
     return erros
 
 

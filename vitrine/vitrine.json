@@ -42,5 +42,9 @@
   },
   "botao": "Calcular",
   "repositorio": "https://github.com/peterwkdev-creator/simples-nacional-br",
-  "rodape": "Estimativa pela tabela da lei: não substitui o PGDAS-D nem o contador. Para escritórios, uma versão com o regime híbrido de 2027, a comparação de regimes e a carteira de clientes está em preparo: lista de espera na issue #1 do repositório (link abaixo)."
+  "rodape": "Estimativa pela tabela da lei: não substitui o PGDAS-D nem o contador.",
+  "links": [
+    {"texto": "Versão para escritórios (híbrido de 2027, comparação de regimes, carteira): lista de espera",
+     "href": "https://github.com/peterwkdev-creator/simples-nacional-br/issues/1"}
+  ]
 }
