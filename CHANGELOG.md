@@ -3,7 +3,7 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
-## Ainda sem versão
+## 1.4.2 — 10/10
 
 - Servidor MCP: valor acima de R$ 1 trilhão (inclusive `1E+999999999`, que é
   JSON válido) e RBT12 zero ou negativo voltam como erro da ferramenta, com

@@ -23,7 +23,7 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.1"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.2"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
