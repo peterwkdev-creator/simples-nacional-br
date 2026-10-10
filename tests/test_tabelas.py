@@ -20,6 +20,7 @@ nominal da 6ª faixa cai 0,1 ponto, com a mesma parcela a deduzir; "A partir
 do ano-calendário 2029" a tabela volta a ser a de CASOS.
 """
 
+import re
 import unittest
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -131,6 +132,41 @@ SEXTA_2027 = [
     ("IV", "32.90", "828000", "(1.480.500 - 828.000) / 4.500.000", "0.145"),
     ("V", "30.40", "540000", "(1.368.000 - 540.000) / 4.500.000", "0.184"),
 ]
+
+
+def _numero(texto):
+    return Decimal(texto.replace(".", "").replace(",", "."))
+
+
+class TestTextoDaConta(unittest.TestCase):
+    """A coluna `conta` só aparece no subTest: aqui o texto bate com a linha."""
+
+    def conferir(self, conta, rbt12, aliq, pd, efetiva):
+        m = re.fullmatch(r"\((.+) - ([\d.,]+)\) / ([\d.,]+)", conta)
+        self.assertIsNotNone(m, conta)
+        bruto, deduz, divisor = m.groups()
+        rbt12, aliq = Decimal(rbt12), Decimal(aliq)
+        self.assertEqual(_numero(divisor), rbt12)
+        self.assertEqual(_numero(deduz), Decimal(pd))
+        if " x " in bruto:  # "150.000 x 4%"
+            base, porcento = bruto.split(" x ")
+            self.assertEqual(_numero(base), rbt12)
+            self.assertEqual(_numero(porcento.rstrip("%")), aliq)
+            bruto = rbt12 * aliq / 100
+        else:
+            bruto = _numero(bruto)
+            self.assertEqual(bruto, rbt12 * aliq / 100)
+        self.assertEqual((bruto - _numero(deduz)) / _numero(divisor), Decimal(efetiva))
+
+    def test_casos(self):
+        for anexo, n, rbt12, aliq, pd, conta, efetiva, _ in CASOS:
+            with self.subTest(anexo=anexo, faixa=n, conta=conta):
+                self.conferir(conta, rbt12, aliq, pd, efetiva)
+
+    def test_sexta_faixa_2027(self):
+        for anexo, aliq, pd, conta, efetiva in SEXTA_2027:
+            with self.subTest(anexo=anexo, conta=conta):
+                self.conferir(conta, "4500000", aliq, pd, efetiva)
 
 
 class TestTabelaPorAno(unittest.TestCase):

@@ -15,6 +15,10 @@ https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-
 - "Para os anos-calendário 2027 e 2028": nominal da 6ª faixa 0,1 ponto
   abaixo, mesma parcela a deduzir; faixas 1 a 5 iguais;
 - "A partir do ano-calendário 2029": as mesmas alíquotas e parcelas de ANEXOS.
+
+Limite, sublimite e Fator R: texto atualizado da LC 123 no site da Câmara,
+conferido em 10/10/2026:
+https://www2.camara.leg.br/legin/fed/leicom/2006/leicomplementar-123-14-dezembro-2006-548099-normaatualizada-pl.html
 """
 
 from decimal import Decimal
@@ -84,11 +88,13 @@ ANEXOS = {
 }
 
 # LC 123, art. 3º, II (redação da LC 155/2016): EPP até R$ 4,8 milhões.
+# Texto atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.
 LIMITE_RECEITA = Decimal("4800000.00")
 
 # LC 123, art. 13-A (redação da LC 155/2016): acima de R$ 3,6 milhões, ICMS e
 # ISS são recolhidos fora do DAS. Em todos os anexos a repartição da 6ª faixa
 # dá 0% a ICMS/ISS (o "-" nas tabelas de "Percentual de Repartição").
+# Texto atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.
 SUBLIMITE_ICMS_ISS = Decimal("3600000.00")
 
 # Repartição do ICMS (Anexos I e II) e do ISS (III, IV e V) da 1ª à 5ª faixa,
@@ -112,10 +118,11 @@ ICMS_ISS_POR_FAIXA = {
 TETO_ISS = Decimal("0.05")
 
 # LC 214/2025, Anexos XVIII a XXII, tabelas "Percentual de Repartição dos
-# Tributos" de cada período (texto compilado do Planalto,
-# https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm, já com a LC
-# 227/2026, salvo em 09/10/2026 e conferido em 10/10/2026): na 5ª faixa, ICMS ou ISS e IBS, por
-# ano de início do período. De 2033 em diante, só o IBS. Acima do sublimite,
+# Tributos" de cada período: na 5ª faixa, ICMS ou ISS e IBS, por ano de
+# início do período. Lidos no Planalto em 09/10/2026; são os mesmos da
+# repartição em tabelas_reparticao.py (texto atualizado da Câmara, URL do
+# cabeçalho, 09/10 e 10/10/2026), e tests/test_reparticao.py confere um
+# contra o outro. De 2033 em diante, só o IBS. Acima do sublimite,
 # sem impedimento no ano, seguem no DAS por ela (Res. CGSN 140, art. 21, IV,
 # redação da Res. CGSN 190/2026, desde 01/01/2027).
 _QUINTA_FAIXA_DESDE_2027 = {
@@ -153,11 +160,13 @@ def quinta_faixa_icms_iss_ibs(anexo, *, ano):
     return Decimal(icms_iss) / 100, Decimal(ibs) / 100
 
 # LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou
-# superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24.
+# superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24. Texto
+# atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.
 FATOR_R_MINIMO = Decimal("0.28")
 
 # LC 214/2025, Anexos XVIII a XXII, "Para os anos-calendário 2027 e 2028":
 # nominal da 6ª faixa (I 18,90%, II 29,90%, III 32,90%, IV 32,90%, V 30,40%).
+# Texto atualizado da LC 214 na Câmara (URL no cabeçalho), 10/10/2026.
 _SEXTA_FAIXA_2027 = {"I": "18.90", "II": "29.90", "III": "32.90", "IV": "32.90", "V": "30.40"}
 
 ANEXOS_2027_2028 = {

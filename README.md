@@ -459,7 +459,7 @@ e o MEI.
 
 ## Compatibilidade
 
-Desde a 1.0.0, a numeração segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+A numeração segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 O que está em `simples_nacional.__all__` e em `simples_nacional.cnae.__all__`
 só muda de forma incompatível numa versão maior (2.0). Função, constante ou
 argumento novo sai numa versão menor (1.1); correção, numa de correção

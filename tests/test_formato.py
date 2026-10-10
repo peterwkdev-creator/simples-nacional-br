@@ -103,12 +103,9 @@ class TestNomesPublicos(unittest.TestCase):
         self.assertEqual(reais(Decimal("0.005")), "0,01")
 
     def test_nomes_antigos_seguem_valendo(self):
-        # quem importava os privados da 0.3.0 não quebra
         from simples_nacional import calculo
         from simples_nacional import __main__ as cli
-        self.assertIs(calculo._decimal, para_decimal)
         self.assertIs(calculo.reais, reais)
-        self.assertIs(cli._porcentagem, porcentagem)
         self.assertEqual(cli._numero("360.000"), Decimal("360000"))
 
 

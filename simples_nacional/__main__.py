@@ -76,7 +76,6 @@ def _mes(texto):
     return int(texto)
 
 
-_porcentagem = porcentagem  # nome da 0.3.0, mantido para quem já o importava
 
 
 def main(argv=None):

@@ -1,7 +1,7 @@
 """Número e valor no formato brasileiro: ler o que se digita e mostrar o resultado.
 
-Públicos desde a 0.3.1, para quem integra a biblioteca não reescrever a
-regra do ponto de milhar.
+Públicos para quem integra a biblioteca não reescrever a regra do ponto
+de milhar.
 """
 
 import functools

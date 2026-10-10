@@ -23,7 +23,6 @@ class LimiteExcedido(ValueError):
     """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
 
 
-_decimal = para_decimal  # nome da 0.3.0, mantido para quem já o importava
 
 
 def _anexo(anexo, ano):

@@ -3,6 +3,17 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## Ainda sem versão
+
+- Fontes: limite, sublimite, Fator R e a 6ª faixa de 2027 e 2028 com a URL
+  e a data de consulta (texto atualizado da Câmara, 10/10/2026); a 5ª faixa
+  de 2027 em diante cita a mesma fonte da repartição.
+- Testes: o texto da conta à mão de cada faixa é conferido contra a linha
+  (um erro de digitação nele derruba o teste).
+- Limpeza: saem `calculo._decimal` e `__main__._porcentagem`, nomes
+  privados da 0.3.0 (fora da API pública; use `para_decimal` e
+  `porcentagem`); `.venv/` e `*.mcpb` no `.gitignore`.
+
 ## 1.4.2 — 10/10
 
 - Servidor MCP: valor acima de R$ 1 trilhão (inclusive `1E+999999999`, que é
