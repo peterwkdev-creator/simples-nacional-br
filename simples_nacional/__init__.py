@@ -22,6 +22,7 @@ from .calculo import (
     valor_devido_inicio_atividade,
 )
 from .formato import ler_numero, para_decimal, porcentagem, reais
+from .reparticao import aliquotas_por_tributo, parcelas_das
 from .tabelas import (
     ANEXOS,
     ANEXOS_2027_2028,
@@ -36,7 +37,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "ANEXOS",
@@ -52,6 +53,7 @@ __all__ = [
     "DEFASAGEM_DESDE",
     "aliquota_efetiva",
     "aliquota_inicio_atividade",
+    "aliquotas_por_tributo",
     "anexo_por_fator_r",
     "avisos",
     "avisos_inicio_atividade",
@@ -59,6 +61,7 @@ __all__ = [
     "fator_r",
     "ler_numero",
     "para_decimal",
+    "parcelas_das",
     "porcentagem",
     "quinta_faixa_icms_iss_ibs",
     "rbt12_inicio_atividade",

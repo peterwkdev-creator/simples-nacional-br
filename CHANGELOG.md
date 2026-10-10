@@ -3,6 +3,20 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.1.0 — 10/10
+
+- Novo: repartição do DAS por tributo. `parcelas_das(anexo, rbt12,
+  receita_mes, *, ano)` dá o valor de cada tributo em centavos, somando o
+  `valor_devido`; `aliquotas_por_tributo(anexo, rbt12, *, ano)` dá a fração
+  da receita de cada um, sem arredondar.
+- Tabelas de repartição de cada período em `tabelas_reparticao.py`, com a
+  fonte: 2018 a 2026 (LC 123, redação da LC 155/2016), 2027 e 2028, 2029,
+  2030, 2031, 2032 e de 2033 em diante (LC 214/2025, Anexos XVIII a XXII),
+  com o teto do ISS da 5ª faixa dos Anexos III e IV.
+- Testes por faixa de cada anexo e período, e de coerência com
+  `ICMS_ISS_POR_FAIXA` e `quinta_faixa_icms_iss_ibs`.
+- Sem quebra: nada da 1.0.0 mudou.
+
 ## 1.0.0 — 10/10
 
 - API estável: o que está em `simples_nacional.__all__` só muda de forma

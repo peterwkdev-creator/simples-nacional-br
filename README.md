@@ -93,9 +93,12 @@ R$ 477.000,00. É o erro relatado em
 - Início de atividade, mês a mês, e o limite proporcional no ano de início.
 - Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1
   ponto menor; a partir de 2029 volta a de hoje.
+- Repartição do valor do mês por tributo (IRPJ, CSLL, Cofins, PIS, CPP,
+  ICMS, ISS e, de 2027 em diante, CBS e IBS), com a tabela de cada período
+  de 2018 a 2033.
 
-Fora do escopo, entre outros: enquadramento CNAE → anexo, repartição do
-valor por tributo, sublimites estaduais, exportação e MEI. A lista completa
+Fora do escopo, entre outros: enquadramento CNAE → anexo, sublimites
+estaduais, exportação e MEI. A lista completa
 e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
 
 ## Como é testado
@@ -212,6 +215,41 @@ reais(Decimal("4800000"))             # '4.800.000,00'
 Na API, o texto vai com ponto decimal, como no `Decimal`: `"360.000"` é
 360. Para o formato brasileiro, passe antes por `ler_numero`.
 
+### Repartição do DAS por tributo
+
+```python
+from simples_nacional import aliquotas_por_tributo, parcelas_das
+
+parcelas_das("III", 3_000_000, 100_000, ano=2026)
+# {'IRPJ': 711.08, 'CSLL': 621.31, 'COFINS': 2277.36, 'PIS': 493.74,
+#  'CPP': 7708.51, 'ISS': 5000.00}  (Decimal, em reais; soma 16.812,00)
+
+parcelas_das("I", 1_000_000, 80_000, ano=2027)
+# {'IRPJ': 371.80, 'CSLL': 236.60, 'CBS': 1036.31, 'CPP': 2839.20,
+#  'ICMS': 2264.60, 'IBS': 11.49}  (soma 6.760,00: efetiva 8,45%)
+
+aliquotas_por_tributo("I", 1_000_000, ano=2027)["IRPJ"]  # 8,45% × 5,50% = 0,46475%
+```
+
+- `parcelas_das` dá quanto do DAS do mês vai a cada tributo, em centavos;
+  a soma é o `valor_devido`. Cada parcela começa truncada no centavo, e o
+  que falta vai às de maior fração descartada (convenção da biblioteca: a
+  lei não fixa o arredondamento). `aliquotas_por_tributo` dá a fração da
+  receita de cada um, sem arredondar; somam a alíquota efetiva.
+- 2018 a 2026: LC 123, Anexos I a V, redação da LC 155/2016. 2027 e 2028,
+  2029, 2030, 2031, 2032 e de 2033 em diante: uma tabela por período da
+  LC 214/2025 (Anexos XVIII a XXII), com CBS e IBS; o IBS toma o lugar do
+  ICMS e do ISS aos poucos, e de 2033 em diante só há IBS.
+- 5ª faixa dos Anexos III e IV: o ISS fica no teto da nota (*) do anexo (5%
+  até 2028; 4,5%, 4%, 3,5% e 3% de 2029 a 2032), e a diferença vai aos
+  outros pelos percentuais da nota. Três dessas notas da LC 214 somam
+  100,01% ou 99,99% (IV em 2029 e 2031, III em 2030): os percentuais se
+  aplicam na proporção deles, para a soma bater com o DAS.
+- 6ª faixa (acima do sublimite): só os federais e a CBS; ICMS, ISS e IBS se
+  pagam fora do DAS. O mês em que a receita do ano passa do sublimite e o
+  ICMS ou ISS pela 5ª faixa (`icms_iss_no_das`) não se repartem aqui.
+- É estimativa: não substitui o PGDAS-D nem o contador.
+
 ## Fontes e limites
 
 | | Fonte (LC 123/2006, redação da LC 155/2016) |
@@ -227,6 +265,7 @@ Na API, o texto vai com ponto decimal, como no `Decimal`: `"360.000"` é
 | Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
 | Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
+| Repartição por tributo (`parcelas_das`, `aliquotas_por_tributo`): efetiva × percentual da faixa; na 5ª faixa de III e IV, ISS no teto da nota (*) do anexo | LC 123, Anexos I a V (redação da LC 155/2016); LC 214/2025, Anexos XVIII a XXII |
 
 Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
 ([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
@@ -235,7 +274,10 @@ a fonte fica ao lado da tabela em `simples_nacional/tabelas.py`. A tabela de
 [texto atualizado da LC 214/2025](https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.html);
 a repartição da 5ª faixa de 2027 em diante, no
 [texto compilado do Planalto](https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm),
-salvo em 09/10/2026 e conferido em 10/10/2026.
+salvo em 09/10/2026 e conferido em 10/10/2026. A repartição por tributo foi
+lida nas mesmas páginas da Câmara (2018 a 2026 e de 2029 em diante em
+10/10/2026; 2027 e 2028 em 09/10/2026); a fonte de cada tabela fica em
+`simples_nacional/tabelas_reparticao.py`.
 
 As regras do início de atividade foram lidas em 09/10/2026 no portal de
 normas da Receita:
@@ -256,8 +298,7 @@ IBS. Quem optar por pagar esses dois tributos pelo regime regular (LC 123,
 art. 13, § 9º) os recolhe fora, e o DAS fica menor: esse cálculo não está
 aqui.
 
-Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
-sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
+Fora do escopo: enquadramento CNAE → anexo, sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
 início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
 têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
 sublimite a partir de 2027 (Res. CGSN 140, art. 24, com o IBS: dá erro) e,
@@ -267,8 +308,9 @@ e o MEI.
 
 ## O que há em cada pasta
 
-- `simples_nacional/`: a biblioteca. `tabelas.py` tem os valores da lei,
-  cada um com a fonte; `calculo.py`, as contas; `formato.py`, a leitura e a
+- `simples_nacional/`: a biblioteca. `tabelas.py` e
+  `tabelas_reparticao.py` têm os valores da lei, cada um com a fonte;
+  `calculo.py`, as contas; `reparticao.py`, a repartição por tributo; `formato.py`, a leitura e a
   escrita de números no formato brasileiro; `__main__.py`, a linha de
   comando.
 - `tests/`: os testes, inclusive o que roda os exemplos deste README.
