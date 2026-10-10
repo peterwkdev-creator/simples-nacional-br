@@ -460,6 +460,15 @@ de cada ferramenta, seus argumentos e as chaves do `structuredContent`
 seguem a mesma regra. Nomes com `_` na frente e o texto dos avisos e das
 respostas não fazem parte da promessa.
 
+## Versão para escritórios
+
+A biblioteca é e continua grátis, sob a licença MIT. Para escritórios de
+contabilidade, está em preparo uma versão completa, que faz a mais: o
+regime híbrido de 2027 em diante (IBS e CBS fora do DAS), a comparação do
+Simples com o Lucro Presumido e o Real e a carteira de clientes. Ainda sem
+preço nem data. Para entrar na lista de espera, reaja com 👍 na
+[issue #1](https://github.com/peterwkdev-creator/simples-nacional-br/issues/1).
+
 ## Contribuir
 
 Achou um valor diferente do PGDAS-D ou da sua conta, ou um caso de borda
