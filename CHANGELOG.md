@@ -6,8 +6,11 @@ cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 ## Ainda sem versão
 
 - Fontes: limite, sublimite, Fator R e a 6ª faixa de 2027 e 2028 com a URL
-  e a data de consulta (texto atualizado da Câmara, 10/10/2026); a 5ª faixa
-  de 2027 em diante cita a mesma fonte da repartição.
+  e a data de consulta (texto atualizado da Câmara, 10/10/2026).
+- Um lugar só: `ICMS_ISS_POR_FAIXA` e `quinta_faixa_icms_iss_ibs` passam a
+  ler a repartição de `tabelas_reparticao.py`, em vez de repetir os
+  números; valores e API iguais. Os testes seguem com os números da lei à
+  parte, e trocar um deles na repartição derruba teste.
 - Testes: o texto da conta à mão de cada faixa é conferido contra a linha
   (um erro de digitação nele derruba o teste).
 - Limpeza: saem `calculo._decimal` e `__main__._porcentagem`, nomes

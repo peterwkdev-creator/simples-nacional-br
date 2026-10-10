@@ -24,6 +24,8 @@ https://www2.camara.leg.br/legin/fed/leicom/2006/leicomplementar-123-14-dezembro
 from decimal import Decimal
 from typing import NamedTuple
 
+from .tabelas_reparticao import PARTILHA_2027_2028, PARTILHA_ATE_2026, PARTILHA_DESDE_2029
+
 
 class Faixa(NamedTuple):
     numero: int
@@ -97,19 +99,19 @@ LIMITE_RECEITA = Decimal("4800000.00")
 # Texto atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.
 SUBLIMITE_ICMS_ISS = Decimal("3600000.00")
 
+
+def _icms_iss(linha):
+    """ICMS (Anexos I e II) ou ISS (III, IV e V) de uma linha da repartição."""
+    return linha.get("ICMS", linha.get("ISS", Decimal(0)))
+
+
 # Repartição do ICMS (Anexos I e II) e do ISS (III, IV e V) da 1ª à 5ª faixa,
-# da tabela "Percentual de Repartição dos Tributos" de cada anexo (mesma fonte
-# do cabeçalho, conferida no HTML da Câmara em 09/10/2026 e 10/10/2026). Na
-# 6ª faixa é 0%. Vale até 2026.
-_ICMS_ISS_POR_FAIXA = {
-    "I": ("34.00", "34.00", "33.50", "33.50", "33.50"),
-    "II": ("32.00", "32.00", "32.00", "32.00", "32.00"),
-    "III": ("33.50", "32.00", "32.50", "32.50", "33.50"),
-    "IV": ("44.50", "40.00", "40.00", "40.00", "40.00"),
-    "V": ("14.00", "17.00", "19.00", "21.00", "23.50"),
-}
+# tirada da tabela "Percentual de Repartição dos Tributos" de cada anexo em
+# tabelas_reparticao.py, que tem a fonte; os números ficam só lá. Na 6ª
+# faixa é 0%. Vale até 2026.
 ICMS_ISS_POR_FAIXA = {
-    anexo: tuple(Decimal(p) / 100 for p in partes) for anexo, partes in _ICMS_ISS_POR_FAIXA.items()
+    anexo: tuple(_icms_iss(linha) for linha in linhas[:5])
+    for anexo, linhas in PARTILHA_ATE_2026.items()
 }
 
 # Nota (*) dos Anexos III e IV: o percentual efetivo do ISS vai até 5%, e a
@@ -117,28 +119,13 @@ ICMS_ISS_POR_FAIXA = {
 # art. 21, III, a, até 2026).
 TETO_ISS = Decimal("0.05")
 
-# LC 214/2025, Anexos XVIII a XXII, tabelas "Percentual de Repartição dos
-# Tributos" de cada período: na 5ª faixa, ICMS ou ISS e IBS, por ano de
-# início do período. Lidos no Planalto em 09/10/2026; são os mesmos da
-# repartição em tabelas_reparticao.py (texto atualizado da Câmara, URL do
-# cabeçalho, 09/10 e 10/10/2026), e tests/test_reparticao.py confere um
-# contra o outro. De 2033 em diante, só o IBS. Acima do sublimite,
-# sem impedimento no ano, seguem no DAS por ela (Res. CGSN 140, art. 21, IV,
-# redação da Res. CGSN 190/2026, desde 01/01/2027).
-_QUINTA_FAIXA_DESDE_2027 = {
-    2027: {"I": ("33.50", "0.17"), "II": ("32.00", "0.15"), "III": ("33.50", "0.17"),
-           "IV": ("40.00", "0.24"), "V": ("23.50", "0.19")},
-    2029: {"I": ("30.15", "3.35"), "II": ("28.80", "3.20"), "III": ("30.15", "3.35"),
-           "IV": ("36.00", "4.00"), "V": ("21.15", "2.35")},
-    2030: {"I": ("26.80", "6.70"), "II": ("25.60", "6.40"), "III": ("26.80", "6.70"),
-           "IV": ("32.00", "8.00"), "V": ("18.80", "4.70")},
-    2031: {"I": ("23.45", "10.05"), "II": ("22.40", "9.60"), "III": ("23.45", "10.05"),
-           "IV": ("28.00", "12.00"), "V": ("16.45", "7.05")},
-    2032: {"I": ("20.10", "13.40"), "II": ("19.20", "12.80"), "III": ("20.10", "13.40"),
-           "IV": ("24.00", "16.00"), "V": ("14.10", "9.40")},
-    2033: {"I": ("0", "33.50"), "II": ("0", "32.00"), "III": ("0", "33.50"),
-           "IV": ("0", "40.00"), "V": ("0", "23.50")},
-}
+# LC 214/2025, Anexos XVIII a XXII: desde 2027, a 5ª faixa de ICMS ou ISS e
+# IBS vem das tabelas "Percentual de Repartição dos Tributos" de cada
+# período, em tabelas_reparticao.py (a fonte está lá). De 2033 em diante, só
+# o IBS. Acima do sublimite, sem impedimento no ano, seguem no DAS por ela
+# (Res. CGSN 140, art. 21, IV, redação da Res. CGSN 190/2026, desde
+# 01/01/2027). Os testes de test_calculo.py repetem os números da lei, à
+# parte, para acusar qualquer troca.
 
 
 def quinta_faixa_icms_iss_ibs(anexo, *, ano):
@@ -155,9 +142,11 @@ def quinta_faixa_icms_iss_ibs(anexo, *, ano):
         raise ValueError(f"anexo: esperado I, II, III, IV ou V, veio {anexo!r}")
     if ano <= 2026:
         return ICMS_ISS_POR_FAIXA[chave][4], Decimal(0)
-    inicio = max(a for a in _QUINTA_FAIXA_DESDE_2027 if a <= ano)
-    icms_iss, ibs = _QUINTA_FAIXA_DESDE_2027[inicio][chave]
-    return Decimal(icms_iss) / 100, Decimal(ibs) / 100
+    if ano <= 2028:
+        linha = PARTILHA_2027_2028[chave][4]
+    else:
+        linha = PARTILHA_DESDE_2029[max(a for a in PARTILHA_DESDE_2029 if a <= ano)][chave][4]
+    return _icms_iss(linha), linha.get("IBS", Decimal(0))
 
 # LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou
 # superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24. Texto

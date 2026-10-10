@@ -190,12 +190,11 @@ def _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano):
     acima_lim = min(max(total - LIMITE_RECEITA, Decimal(0)), receita_mes)
     dentro = receita_mes - acima_sub
     rbt12 = para_decimal(rbt12, "rbt12")
-    quinta, sexta = _anexo(anexo, ano)[4], _anexo(anexo, ano)[5]
+    sexta = _anexo(anexo, ano)[5]
     if receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2"):
         icms_iss = Decimal(0)
     else:
-        icms_iss = ((SUBLIMITE_ICMS_ISS * quinta.aliquota - quinta.parcela_deduzir)
-                    / SUBLIMITE_ICMS_ISS * ICMS_ISS_POR_FAIXA[anexo.upper()][4])
+        icms_iss = _icms_iss_quinta_faixa(anexo, SUBLIMITE_ICMS_ISS, ano)
     federal = aliquota_efetiva(anexo, rbt12, ano=ano) - _icms_iss_da_faixa(anexo, rbt12, ano)
     federal_limite = (LIMITE_RECEITA * sexta.aliquota - sexta.parcela_deduzir) / LIMITE_RECEITA
     return [(dentro, aliquota_efetiva(anexo, rbt12, ano=ano, icms_iss_no_das=True)),
