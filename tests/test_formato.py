@@ -4,7 +4,6 @@ Quem integra a biblioteca (a CLI dela e outros sistemas) lê número digitado
 e mostra valor e alíquota sem reescrever a regra do ponto de milhar.
 """
 
-import re
 import unittest
 from decimal import Decimal
 from pathlib import Path
@@ -94,8 +93,10 @@ class TestNomesPublicos(unittest.TestCase):
                 self.assertIn(nome, simples_nacional.__all__)
         pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(
             encoding="utf-8")
-        versao, = re.findall(r'^version = "(.+)"$', pyproject, re.M)
-        self.assertEqual(simples_nacional.__version__, versao)
+        # a versão mora só no __version__; o pyproject a lê de lá
+        self.assertNotRegex(pyproject, r'(?m)^version = "')
+        self.assertIn('version = { attr = "simples_nacional.__version__" }', pyproject)
+        self.assertRegex(simples_nacional.__version__, r"^\d+\.\d+\.\d+$")
 
     def test_reais(self):
         self.assertEqual(reais(Decimal("4800000")), "4.800.000,00")

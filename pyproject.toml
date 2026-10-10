@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "simples-nacional"
-version = "1.0.0"
+dynamic = ["version"]  # uma fonte só: simples_nacional.__version__
 description = "Simples Nacional: alíquota efetiva, valor do mês e Fator R, conferidos contra a LC 123/2006 e a LC 214/2025"
 readme = "README.md"
 license = "MIT"
@@ -25,3 +25,6 @@ Issues = "https://github.com/peterwkdev-creator/simples-nacional-br/issues"
 
 [tool.setuptools]
 packages = ["simples_nacional"]
+
+[tool.setuptools.dynamic]
+version = { attr = "simples_nacional.__version__" }

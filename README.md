@@ -35,7 +35,7 @@ python -m unittest
 python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000
 ```
 
-Testado a cada push com Python 3.9 a 3.13 (Linux) e 3.13 (Windows).
+Testado a cada push com Python 3.9 a 3.14 (Linux) e 3.13 (Windows).
 Sem `--ano`, a linha de comando usa o ano corrente e diz qual tabela usou.
 
 ## Uso
