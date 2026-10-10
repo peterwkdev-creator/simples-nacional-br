@@ -12,7 +12,7 @@ body:
     attributes:
       label: Versão
       description: "Saída de `python -m simples_nacional --version`."
-      placeholder: simples-nacional 0.6.0
+      placeholder: simples-nacional 1.0.0
     validations:
       required: true
   - type: textarea
