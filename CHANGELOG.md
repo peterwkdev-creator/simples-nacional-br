@@ -3,6 +3,19 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.2.0 — 10/10
+
+- Novo: planejamento do Fator R. `planejar_fator_r(folha12, rbt12,
+  receita_mes, *, ano, icms_iss_no_das=False)` devolve um `PlanoFatorR`
+  com o Fator R, o anexo de hoje, a folha de 12 meses que leva a 28%
+  (arredondada para cima no centavo), quanto falta e o valor do mês no
+  Anexo V e no III, com a diferença.
+- A diferença é só no DAS: a contribuição previdenciária e o IRPF do
+  pró-labore a mais não estão descontados.
+- Linha de comando: `--anexo fator-r` mostra o planejamento (fora do mês
+  do art. 24, `--receita-ano`).
+- Sem quebra: nada da 1.1.0 mudou.
+
 ## 1.1.0 — 10/10
 
 - Novo: repartição do DAS por tributo. `parcelas_das(anexo, rbt12,

@@ -85,7 +85,8 @@ R$ 477.000,00. É o erro relatado em
 - Anexos I a V, seis faixas cada (teto, alíquota nominal, parcela a
   deduzir), com a alíquota efetiva e o valor do mês.
 - Fator R: folha de 12 meses ÷ RBT12; 28% ou mais vai para o Anexo III,
-  senão para o V.
+  senão para o V. E o planejamento: a folha que leva a 28%, quanto falta e
+  o valor do mês nos dois anexos.
 - Teto de R$ 4,8 milhões: erro explicado, nunca número.
 - Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal;
   a pedido, o ICMS ou ISS (e o IBS, desde 2027) pela 5ª faixa; até 2026, o
@@ -215,6 +216,33 @@ reais(Decimal("4800000"))             # '4.800.000,00'
 Na API, o texto vai com ponto decimal, como no `Decimal`: `"360.000"` é
 360. Para o formato brasileiro, passe antes por `ler_numero`.
 
+### Planejamento do Fator R
+
+```python
+from simples_nacional import planejar_fator_r
+
+p = planejar_fator_r(120_000, 600_000, 50_000, ano=2026)  # folha12, rbt12, receita_mes
+p.fator            # Decimal('0.2'): 20%, Anexo V
+p.folha_minima     # Decimal('168000.00') = 28% × 600.000
+p.folha_que_falta  # Decimal('48000.00')
+p.das_anexo_v      # Decimal('8925.00') = 50.000 × 17,85%
+p.das_anexo_iii    # Decimal('5280.00') = 50.000 × 10,56%
+p.diferenca_das    # Decimal('3645.00'): o III sai mais barato no mês
+```
+
+- A folha mínima é 28% do RBT12 arredondada para cima no centavo, para dar
+  28% ou mais (LC 123, art. 18, §§ 5º-J e 5º-M); a folha é a do § 24, com
+  o pró-labore e os encargos.
+- **A diferença é só no DAS.** O pró-labore a mais paga a contribuição
+  previdenciária do sócio e pode pagar IRPF, que dependem da pessoa: nada
+  disso está descontado.
+- O Fator R olha os 12 meses da folha: o que falta pode entrar aos poucos
+  ou de uma vez, e a biblioteca não escolhe.
+- Na 6ª faixa o Anexo V pode sair mais barato que o III (diferença
+  negativa).
+- Na linha de comando, `--anexo fator-r --folha12 ...` mostra o mesmo
+  planejamento, exceto no mês do art. 24 (`--receita-ano`).
+
 ### Repartição do DAS por tributo
 
 ```python
@@ -257,7 +285,7 @@ aliquotas_por_tributo("I", 1_000_000, ano=2027)["IRPJ"]  # 8,45% × 5,50% = 0,46
 | Anexos I a V, seis faixas cada: teto, alíquota nominal, parcela a deduzir | Anexos I a V |
 | Alíquota efetiva | art. 18, § 1º-A |
 | Valor do mês: receita do mês × alíquota efetiva | art. 18, § 3º |
-| Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
+| Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V. Planejamento (`planejar_fator_r`): folha de 28% do RBT12, para cima no centavo, e o valor do mês nos dois anexos | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
 | Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
 | Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
 | RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): efetiva da 5ª faixa × repartição dela, somada à 6ª faixa, que é só federal. Até 2026, ICMS ou ISS (I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%); de 2027 a 2032, ICMS ou ISS e IBS, pela tabela de cada período; de 2033 em diante, só o IBS | Res. CGSN 140/2018, art. 21, III, b, e IV (redação da Res. CGSN 190/2026); repartição dos Anexos I a V da LC 123 e XVIII a XXII da LC 214 |
@@ -310,7 +338,8 @@ e o MEI.
 
 - `simples_nacional/`: a biblioteca. `tabelas.py` e
   `tabelas_reparticao.py` têm os valores da lei, cada um com a fonte;
-  `calculo.py`, as contas; `reparticao.py`, a repartição por tributo; `formato.py`, a leitura e a
+  `calculo.py`, as contas; `reparticao.py`, a repartição por tributo;
+  `planejamento.py`, o planejamento do Fator R; `formato.py`, a leitura e a
   escrita de números no formato brasileiro; `__main__.py`, a linha de
   comando.
 - `tests/`: os testes, inclusive o que roda os exemplos deste README.

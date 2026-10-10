@@ -22,6 +22,7 @@ from .calculo import (
     valor_devido_inicio_atividade,
 )
 from .formato import ler_numero, para_decimal, porcentagem, reais
+from .planejamento import PlanoFatorR, planejar_fator_r
 from .reparticao import aliquotas_por_tributo, parcelas_das
 from .tabelas import (
     ANEXOS,
@@ -37,7 +38,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 __all__ = [
     "ANEXOS",
@@ -48,6 +49,7 @@ __all__ = [
     "SUBLIMITE_ICMS_ISS",
     "TETO_ISS",
     "Faixa",
+    "PlanoFatorR",
     "Vigencia",
     "LimiteExcedido",
     "DEFASAGEM_DESDE",
@@ -62,6 +64,7 @@ __all__ = [
     "ler_numero",
     "para_decimal",
     "parcelas_das",
+    "planejar_fator_r",
     "porcentagem",
     "quinta_faixa_icms_iss_ibs",
     "rbt12_inicio_atividade",

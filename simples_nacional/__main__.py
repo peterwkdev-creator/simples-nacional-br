@@ -24,6 +24,7 @@ from .calculo import (
     valor_devido_inicio_atividade,
 )
 from .formato import CENTAVO, ler_numero, porcentagem, reais
+from .planejamento import planejar_fator_r
 from .tabelas import LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
 
 
@@ -134,6 +135,7 @@ def main(argv=None):
 
     linhas = []
     anexo = a.anexo.upper()
+    plano = None
     try:
         linhas.append(f"Tabela do ano-calendário {a.ano}: {vigencia(a.ano).fonte} "
                       "(para outro ano de apuração, use --ano)")
@@ -148,6 +150,9 @@ def main(argv=None):
             linhas.append(
                 f"Fator R: {_fator_r_truncado(fator_r(a.folha12, a.rbt12))} "
                 f"-> Anexo {anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
+            if a.receita_ano is None:
+                plano = planejar_fator_r(a.folha12, a.rbt12, a.receita_mes, ano=a.ano,
+                                         icms_iss_no_das=a.icms_iss_no_das)
         if a.receitas is None:
             rbt12, receita_mes = a.rbt12, a.receita_mes
             f = faixa(anexo, rbt12, ano=a.ano)
@@ -214,6 +219,21 @@ def main(argv=None):
                 linhas.append(f"  R$ {reais(parcela)} {nome}: × {porcentagem(aliquota)}")
         linhas.append(f"Valor do mês: R$ {reais(valor)} = soma das parcelas, "
                       "arredondada no centavo")
+    if plano is not None:
+        diferenca = plano.diferenca_das
+        linhas += [
+            f"Folha de 12 meses para 28%: R$ {reais(plano.folha_minima)}; "
+            + ("a de hoje já chega" if plano.anexo == "III"
+               else f"faltam R$ {reais(plano.folha_que_falta)}"),
+            f"Valor do mês no Anexo V: R$ {reais(plano.das_anexo_v)}; no Anexo III: "
+            f"R$ {reais(plano.das_anexo_iii)}; "
+            + (f"o III sai R$ {reais(diferenca)} mais barato" if diferenca > 0
+               else f"o V sai R$ {reais(-diferenca)} mais barato" if diferenca < 0
+               else "o mesmo valor"),
+            "Aviso: a diferença é só no DAS. O pró-labore a mais paga a contribuição "
+            "previdenciária do sócio e pode pagar IRPF, que dependem da pessoa: nada "
+            "disso está descontado.",
+        ]
     if rbt12 is not None and a.receita_ano is not None:
         linhas += [f"Aviso: {texto}"
                    for texto in _avisos_receita_do_ano(receita_mes, a.receita_ano)]

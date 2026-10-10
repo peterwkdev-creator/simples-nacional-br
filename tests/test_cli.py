@@ -213,6 +213,35 @@ class TestCli034(unittest.TestCase):
                          "--folha12", "28000", "--receita-mes", "10000")
         self.assertIn("Fator R: 28,0000% -> Anexo III", texto)
 
+    def test_fator_r_mostra_o_planejamento(self):
+        # os números de test_planejamento: RBT12 600.000, folha 120.000, receita 50.000
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "600000",
+                         "--folha12", "120000", "--receita-mes", "50000")
+        self.assertIn("Folha de 12 meses para 28%: R$ 168.000,00; faltam R$ 48.000,00", texto)
+        self.assertIn("Valor do mês no Anexo V: R$ 8.925,00; no Anexo III: R$ 5.280,00; "
+                      "o III sai R$ 3.645,00 mais barato", texto)
+        self.assertIn("nada disso está descontado", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "4800000",
+                         "--folha12", "1344000", "--receita-mes", "400000")
+        self.assertIn("a de hoje já chega", texto)
+        self.assertIn("o V sai R$ 1.000,00 mais barato", texto)
+        # os mesmos números com --icms-iss-no-das: o ISS pela 5ª faixa nos dois anexos
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "4000000",
+                         "--folha12", "0", "--receita-mes", "100000", "--icms-iss-no-das")
+        self.assertIn("no Anexo V: R$ 22.040,16; no Anexo III: R$ 22.782,77; "
+                      "o V sai R$ 742,61 mais barato", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "600000",
+                         "--folha12", "0", "--receita-mes", "0")
+        self.assertIn("no Anexo III: R$ 0,00; o mesmo valor", texto)
+        # com um anexo informado ou no mês do art. 24 (--receita-ano), nada de planejamento
+        _, texto = saida("--ano", "2026", "--anexo", "V", "--rbt12", "600000",
+                         "--receita-mes", "50000")
+        self.assertNotIn("Folha de 12 meses", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "fator-r", "--rbt12", "600000",
+                         "--folha12", "0", "--receita-mes", "50000", "--receita-ano", "3700000")
+        self.assertIn("Fator R: 0,0000% -> Anexo V", texto)
+        self.assertNotIn("Folha de 12 meses", texto)
+
     def test_version(self):
         r = rodar("--version")
         self.assertEqual(r.returncode, 0, r.stderr)
