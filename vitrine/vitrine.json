@@ -1,6 +1,6 @@
 {
-  "titulo": "Simples Nacional: alíquota efetiva e DAS do mês",
-  "descricao": "Calcula a alíquota efetiva e o valor do mês pela tabela da LC 123 (e da LC 214 a partir de 2027), com o Fator R, para contador e quem desenvolve sistema fiscal. Roda no seu navegador: nenhum número sai do seu computador.",
+  "titulo": "Simples Nacional: alíquota efetiva, DAS do mês e Fator R",
+  "descricao": "Calcula a alíquota efetiva, o valor do mês e a parte de cada tributo pela tabela da LC 123 (e da LC 214 a partir de 2027) e, com o Fator R, quanto de folha leva ao Anexo III e quanto muda o DAS, para contador e quem desenvolve sistema fiscal. Roda no seu navegador: nenhum número sai do seu computador.",
   "lang": "pt-BR",
   "pacote": "simples_nacional",
   "campos": [

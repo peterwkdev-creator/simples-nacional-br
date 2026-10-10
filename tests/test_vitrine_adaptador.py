@@ -61,6 +61,59 @@ class TestAdaptador(unittest.TestCase):
         self.assertTrue(res["resumo"].endswith("Há aviso na tabela."))
         self.assertEqual(len(self.passo(res, "Aviso")), 1)
 
+    def tributos(self, res):
+        return {passo[len("No DAS: "):]: valor for passo, valor in res["tabela"]["linhas"]
+                if passo.startswith("No DAS: ")}
+
+    def test_reparticao_por_tributo(self):
+        # Exemplo da página, 4ª faixa do Anexo III em 2026 (LC 123, Anexo III,
+        # repartição): IRPJ 4%, CSLL 3,5%, COFINS 13,64%, PIS 2,96%, CPP 43,4%,
+        # ISS 32,5% da efetiva de 13,624%. COFINS: 13,624% × 13,64% = 1,8583136%,
+        # × 100.000 = 1.858,31; a soma das parcelas é o valor do mês, 13.624,00.
+        res = self.rodar()
+        self.assertEqual(self.tributos(res), {
+            "IRPJ": "R$ 544,96 (0,5450% da receita)",
+            "CSLL": "R$ 476,84 (0,4768% da receita)",
+            "COFINS": "R$ 1.858,31 (1,8583% da receita)",
+            "PIS": "R$ 403,27 (0,4033% da receita)",
+            "CPP": "R$ 5.912,82 (5,9128% da receita)",
+            "ISS": "R$ 4.427,80 (4,4278% da receita)",
+        })
+        # Acima do sublimite o ICMS fica fora; em 2027 entram CBS e IBS.
+        res = self.rodar(anexo="I", rbt12="4500000", receita_mes="375.000")
+        self.assertEqual(list(self.tributos(res)), ["IRPJ", "CSLL", "COFINS", "PIS", "CPP"])
+        res = self.rodar(ano="2027")
+        self.assertEqual(list(self.tributos(res)), ["IRPJ", "CSLL", "CBS", "CPP", "ISS", "IBS"])
+
+    def test_fator_r_planejado(self):
+        # RBT12 600.000, folha 120.000 (20%), receita 50.000, 3ª faixa.
+        # V: (600.000 × 19,5% − 9.900) ÷ 600.000 = 17,85% → 8.925,00;
+        # III: (600.000 × 13,5% − 17.640) ÷ 600.000 = 10,56% → 5.280,00.
+        # Folha para 28%: 168.000, faltam 48.000.
+        res = self.rodar(anexo="Fator R", rbt12="600.000", receita_mes="50.000", folha12="120.000")
+        self.assertEqual(self.passo(res, "Folha para 28%"), ["R$ 168.000,00: faltam R$ 48.000,00"])
+        self.assertEqual(self.passo(res, "Valor no Anexo V"), ["R$ 8.925,00"])
+        self.assertEqual(self.passo(res, "Valor no Anexo III"), ["R$ 5.280,00"])
+        self.assertEqual(self.passo(res, "Diferença"), ["o III sai R$ 3.645,00 mais barato"])
+        self.assertIn("pró-labore", self.passo(res, "Atenção")[0])
+        self.assertTrue(res["resumo"].endswith(
+            "Com mais R$ 48.000,00 de folha em 12 meses, o Anexo III sairia "
+            "R$ 3.645,00 mais barato no DAS."))
+        # Já em 28%: nada falta; V na 4ª faixa 19,36% → 19.360,00 contra 13.624,00.
+        res = self.rodar(anexo="Fator R", folha12="420.000,00")
+        self.assertEqual(self.passo(res, "Folha para 28%"), ["R$ 420.000,00: a de hoje já chega"])
+        self.assertEqual(self.passo(res, "Diferença"), ["o III sai R$ 5.736,00 mais barato"])
+        self.assertNotIn("Com mais", res["resumo"])
+        # 6ª faixa: V 19,25% → 77.000,00; III 19,5% → 78.000,00. O resumo não sugere o III.
+        res = self.rodar(anexo="Fator R", rbt12="4.800.000", receita_mes="400.000", folha12="0")
+        self.assertEqual(self.passo(res, "Diferença"), ["o V sai R$ 1.000,00 mais barato"])
+        self.assertNotIn("Com mais", res["resumo"])
+        res = self.rodar(anexo="Fator R", receita_mes="0", folha12="0")
+        self.assertEqual(self.passo(res, "Diferença"), ["o mesmo valor"])
+        self.assertNotIn("Com mais", res["resumo"])
+        # Com o anexo informado não há planejamento.
+        self.assertEqual(self.passo(self.rodar(), "Folha para 28%"), [])
+
     def test_tabela_de_2027(self):
         res = self.rodar(ano="2027")
         self.assertEqual(self.passo(res, "Tabela"),

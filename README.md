@@ -10,9 +10,11 @@ só a biblioteca padrão, `Decimal` do começo ao fim.
 ![A página calcula o exemplo do Anexo III e depois o mesmo mês pelo Fator R](docs/vitrine.gif)
 
 **[Experimente no navegador](https://peterwkdev-creator.github.io/simples-nacional-br/)**:
-a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide).
-Nenhum número sai do seu computador. Na primeira visita o navegador baixa
-cerca de 6 MB (o Python do Pyodide; a biblioteca são 20 KB); depois, cada
+a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
+alíquota efetiva, valor do mês, a parte de cada tributo e, com o Fator R,
+a folha que leva ao Anexo III e quanto muda o DAS. Nenhum número sai do
+seu computador. Na primeira visita o navegador baixa
+cerca de 6 MB (o Python do Pyodide; a biblioteca são 25 KB); depois, cada
 conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 
 > **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o

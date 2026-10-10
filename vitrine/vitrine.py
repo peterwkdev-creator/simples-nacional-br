@@ -15,19 +15,23 @@ from decimal import ROUND_DOWN, Decimal
 from simples_nacional import (
     FATOR_R_MINIMO,
     aliquota_efetiva,
-    anexo_por_fator_r,
+    aliquotas_por_tributo,
     avisos,
     faixa,
-    fator_r,
     ler_numero,
+    parcelas_das,
+    planejar_fator_r,
     porcentagem,
     reais,
     valor_devido,
     vigencia,
 )
 
-AVISO = ("Estimativa pela tabela da lei, sem a repartição dos tributos: "
-         "não substitui o PGDAS-D nem o contador.")
+AVISO = "Estimativa pela tabela da lei: não substitui o PGDAS-D nem o contador."
+
+ATENCAO_FATOR_R = ("A diferença é só no DAS. O pró-labore a mais paga a contribuição "
+                   "previdenciária do sócio e pode pagar IRPF, que dependem da pessoa: "
+                   "nada disso está descontado.")
 
 OBRIGATORIOS = {
     "anexo": "o anexo",
@@ -69,16 +73,17 @@ def _calcular(entradas):
     receita = _numero(entradas["receita_mes"], "receita do mês")
     anexo = entradas["anexo"].strip().upper()
     linhas = []
+    plano = None
     if anexo.replace(" ", "").replace("-", "") == "FATORR":
         folha_texto = entradas.get("folha12", "")
         if not folha_texto.strip():
             return {"resumo": "Falta a folha dos 12 meses: com Fator R, é ela que "
                               "decide entre o Anexo III e o V.", "aviso": AVISO}
         folha = _numero(folha_texto, "folha dos 12 meses")
-        fator = fator_r(folha, rbt12)
-        anexo = anexo_por_fator_r(folha, rbt12)
-        lado = "28% ou mais" if fator >= FATOR_R_MINIMO else "abaixo de 28%"
-        linhas.append(["Fator R (folha ÷ RBT12)", f"{_percentual_cortado(fator)}: {lado}, Anexo {anexo}"])
+        plano = planejar_fator_r(folha, rbt12, receita, ano=ano)
+        anexo = plano.anexo
+        lado = "28% ou mais" if plano.fator >= FATOR_R_MINIMO else "abaixo de 28%"
+        linhas.append(["Fator R (folha ÷ RBT12)", f"{_percentual_cortado(plano.fator)}: {lado}, Anexo {anexo}"])
     f = faixa(anexo, rbt12, ano=ano)
     efetiva = aliquota_efetiva(anexo, rbt12, ano=ano)
     valor = valor_devido(anexo, rbt12, receita, ano=ano)
@@ -90,10 +95,29 @@ def _calcular(entradas):
         ["Alíquota efetiva", f"{porcentagem(efetiva)} = (RBT12 × nominal − parcela) ÷ RBT12"],
         ["Valor do mês", f"R$ {reais(valor)} = receita do mês × efetiva, arredondado no centavo"],
     ]
+    taxas = aliquotas_por_tributo(anexo, rbt12, ano=ano)
+    linhas += [[f"No DAS: {tributo}", f"R$ {reais(parcela)} ({porcentagem(taxas[tributo])} da receita)"]
+               for tributo, parcela in parcelas_das(anexo, rbt12, receita, ano=ano).items()]
+    if plano is not None:
+        diferenca = plano.diferenca_das
+        linhas += [
+            ["Folha para 28%", f"R$ {reais(plano.folha_minima)}: "
+             + ("a de hoje já chega" if plano.anexo == "III"
+                else f"faltam R$ {reais(plano.folha_que_falta)}")],
+            ["Valor no Anexo V", f"R$ {reais(plano.das_anexo_v)}"],
+            ["Valor no Anexo III", f"R$ {reais(plano.das_anexo_iii)}"],
+            ["Diferença", f"o III sai R$ {reais(diferenca)} mais barato" if diferenca > 0
+             else f"o V sai R$ {reais(-diferenca)} mais barato" if diferenca < 0
+             else "o mesmo valor"],
+            ["Atenção", ATENCAO_FATOR_R],
+        ]
     achados = avisos(rbt12, ano=ano)
     linhas += [["Aviso", a] for a in achados]
     resumo = (f"Alíquota efetiva de {porcentagem(efetiva)} na {f.numero}ª faixa do "
               f"Anexo {anexo}: R$ {reais(valor)} no mês, pela tabela de {ano}.")
+    if plano is not None and plano.anexo == "V" and diferenca > 0:
+        resumo += (f" Com mais R$ {reais(plano.folha_que_falta)} de folha em 12 meses, "
+                   f"o Anexo III sairia R$ {reais(diferenca)} mais barato no DAS.")
     if achados:
         resumo += " Há aviso na tabela."
     return {
