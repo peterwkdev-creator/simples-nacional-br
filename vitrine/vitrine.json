@@ -1,0 +1,46 @@
+{
+  "titulo": "Simples Nacional: alíquota efetiva e DAS do mês",
+  "descricao": "Calcula a alíquota efetiva e o valor do mês pela tabela da LC 123 (e da LC 214 a partir de 2027), com o Fator R, para contador e quem desenvolve sistema fiscal. Roda no seu navegador: nenhum número sai do seu computador.",
+  "lang": "pt-BR",
+  "pacote": "simples_nacional",
+  "campos": [
+    {
+      "nome": "anexo",
+      "rotulo": "Anexo: I, II, III, IV, V ou Fator R",
+      "tipo": "texto",
+      "exemplo": "III"
+    },
+    {
+      "nome": "ano",
+      "rotulo": "Ano de apuração",
+      "tipo": "texto",
+      "exemplo": "2026"
+    },
+    {
+      "nome": "rbt12",
+      "rotulo": "Receita bruta dos 12 meses anteriores (RBT12), em R$",
+      "tipo": "texto",
+      "exemplo": "1.500.000,00"
+    },
+    {
+      "nome": "receita_mes",
+      "rotulo": "Receita do mês, em R$",
+      "tipo": "texto",
+      "exemplo": "100.000,00"
+    },
+    {
+      "nome": "folha12",
+      "rotulo": "Folha dos 12 meses, em R$ (só com Fator R)",
+      "tipo": "texto",
+      "exemplo": ""
+    }
+  ],
+  "textos": {
+    "pronto": "Pronto. Troque os números do exemplo pelos seus e clique em Calcular.",
+    "alterado": "Os números mudaram: calcule de novo para ver o resultado.",
+    "tabela": "A conta"
+  },
+  "botao": "Calcular",
+  "repositorio": "https://github.com/peterwkdev-creator/simples-nacional-br",
+  "rodape": "Estimativa pela tabela da lei: não substitui o PGDAS-D nem o contador."
+}
