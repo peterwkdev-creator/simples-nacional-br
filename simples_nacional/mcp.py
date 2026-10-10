@@ -129,6 +129,11 @@ class ErroDeEntrada(ValueError):
     """Argumento que não serve: volta ao modelo como erro da ferramenta."""
 
 
+# nenhum valor de empresa do Simples chega perto; 1E+999999999 é JSON válido e
+# estouraria o Decimal no meio da conta
+TETO = Decimal("1E12")
+
+
 def _numero(argumentos, nome):
     valor = argumentos.get(nome)
     if valor is None:
@@ -137,9 +142,18 @@ def _numero(argumentos, nome):
         raise ErroDeEntrada(f"{nome}: número ou texto, não {type(valor).__name__}")
     if isinstance(valor, str):
         try:
-            return ler_numero(valor)
+            valor = ler_numero(valor)
         except ValueError as erro:
             raise ErroDeEntrada(f"{nome}: {erro}") from None
+    if isinstance(valor, Decimal) and not valor.is_finite():
+        raise ErroDeEntrada(f"{nome}: não é número finito")
+    if Decimal(valor).copy_abs() > TETO:  # copy_abs não passa pelo contexto (abs estoura)
+        raise ErroDeEntrada(f"{nome}: acima de R$ 1 trilhão")
+    if nome == "rbt12" and valor <= 0:
+        # a mensagem da biblioteca cita uma função Python, que não é ferramenta aqui
+        raise ErroDeEntrada("rbt12: tem de ser positivo; os primeiros meses de atividade "
+                            "(RBT12 proporcional, LC 123, art. 18, § 2º) não estão nestas "
+                            "ferramentas")
     return valor
 
 
@@ -234,7 +248,7 @@ EXECUTAR = {"calcular_das": calcular_das, "repartir_das": repartir_das,
 def chamar(nome, argumentos):
     """Resultado de tools/call: erro de entrada ou de regra volta como isError."""
     if nome not in EXECUTAR:
-        raise ErroDoProtocolo(PARAMETRO_INVALIDO, f"Unknown tool: {nome}")
+        raise ErroDoProtocolo(PARAMETRO_INVALIDO, f"ferramenta desconhecida: {nome}")
     ferramenta = next(f for f in FERRAMENTAS if f["name"] == nome)
     esquema = ferramenta["inputSchema"]
     try:
@@ -252,6 +266,9 @@ def chamar(nome, argumentos):
     except (ValueError, TypeError) as erro:  # LimiteExcedido é ValueError
         rotulo = "limite" if isinstance(erro, LimiteExcedido) else "erro"
         return {"content": [{"type": "text", "text": f"{rotulo}: {erro}"}], "isError": True}
+    except ArithmeticError:  # Decimal fora do alcance, se algo passar do TETO
+        return {"content": [{"type": "text", "text": "erro: número fora do alcance do cálculo"}],
+                "isError": True}
     dados["aviso"] = AVISO
     texto = "\n".join(linhas + [AVISO])
     return {"content": [{"type": "text", "text": texto},
@@ -270,7 +287,7 @@ class Servidor:
     def responder(self, mensagem):
         """Resposta JSON-RPC (dict) ou None, para notificação e resposta do cliente."""
         if not isinstance(mensagem, dict) or mensagem.get("jsonrpc") != "2.0":
-            return _erro(None, REQUISICAO_INVALIDA, "Invalid Request")
+            return _erro(None, REQUISICAO_INVALIDA, "requisição inválida: não é JSON-RPC 2.0")
         if "method" not in mensagem:
             return None  # resposta do cliente: o servidor não faz requisição
         if "id" not in mensagem:
@@ -282,7 +299,7 @@ class Servidor:
             return _erro(ident, erro.codigo, str(erro), erro.dados)
         except Exception as erro:  # defeito do servidor: nunca derruba o processo
             print(f"simples-nacional mcp: {erro!r}", file=sys.stderr)
-            return _erro(ident, ERRO_INTERNO, "Internal error")
+            return _erro(ident, ERRO_INTERNO, "erro interno do servidor")
 
     def _metodo(self, mensagem):
         metodo, params = mensagem["method"], mensagem.get("params") or {}
@@ -299,7 +316,7 @@ class Servidor:
         sem_estado = META_VERSAO in meta
         if sem_estado:
             if meta[META_VERSAO] != VERSAO_SEM_ESTADO:
-                raise ErroDoProtocolo(VERSAO_NAO_SUPORTADA, "Unsupported protocol version",
+                raise ErroDoProtocolo(VERSAO_NAO_SUPORTADA, "versão do protocolo não suportada",
                                       {"supported": list(VERSOES),
                                        "requested": meta[META_VERSAO]})
             if META_CAPACIDADES not in meta:
@@ -326,7 +343,7 @@ class Servidor:
             if not isinstance(params.get("name"), str):
                 raise ErroDoProtocolo(PARAMETRO_INVALIDO, "tools/call: falta name")
             return chamar(params["name"], params.get("arguments", {}))
-        raise ErroDoProtocolo(METODO_DESCONHECIDO, f"Method not found: {metodo}")
+        raise ErroDoProtocolo(METODO_DESCONHECIDO, f"método desconhecido: {metodo}")
 
 
 def _erro(ident, codigo, mensagem, dados=None):
@@ -350,7 +367,7 @@ def tratar_linha(servidor, linha):
         # número decimal vira Decimal: float erra centavo
         mensagem = json.loads(linha.decode("utf-8"), parse_float=Decimal)
     except (UnicodeDecodeError, ValueError):
-        resposta = _erro(None, JSON_INVALIDO, "Parse error")
+        resposta = _erro(None, JSON_INVALIDO, "JSON inválido")
     else:
         resposta = servidor.responder(mensagem)
     if resposta is None:

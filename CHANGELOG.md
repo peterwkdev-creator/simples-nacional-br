@@ -3,6 +3,18 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## Ainda sem versão
+
+- Servidor MCP: valor acima de R$ 1 trilhão (inclusive `1E+999999999`, que é
+  JSON válido) e RBT12 zero ou negativo voltam como erro da ferramenta, com
+  o nome do argumento, em vez de erro interno; mensagens de erro do
+  protocolo em português.
+- Pacote MCPB: o mesmo hash no Windows e no Linux (`create_system` fixo).
+- Workflows: testes e montagem só com leitura; escrita e OIDC só no job que
+  publica; checkout sem guardar a credencial; o `mcp-publisher` baixado é
+  conferido pelo sha256.
+- Vitrine: `index.html`, `montar.py` e `test_vitrine.py` do modelo atual.
+
 ## 1.4.1 — 10/10
 
 - Novo: o servidor MCP também como pacote MCPB, anexado a cada Release

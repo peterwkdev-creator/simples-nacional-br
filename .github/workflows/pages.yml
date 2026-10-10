@@ -1,8 +1,7 @@
 # Vitrine no GitHub Pages (modelo da Coordenação, modelo/vitrine/LEIA-ME.md).
-# Mora em .github/workflows/pages.yml do repositório público da biblioteca.
-# Trocar PACOTE pelo nome da pasta do pacote. Antes do 1º push: Settings →
-# Pages → Source: "GitHub Actions" (é do usuário). Versões conferidas em
-# 10/10/2026 (último release de cada action).
+# Versões conferidas em 10/10/2026 (último release de cada action). Os testes
+# e a montagem rodam só com leitura; a escrita no Pages e o OIDC ficam no job
+# que publica, como no modelo do próprio GitHub Pages.
 name: Vitrine
 on:
   push:
@@ -12,21 +11,18 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  publicar:
+  montar:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       # A mesma versão do Python que o Pyodide 314 roda no navegador.
       - uses: actions/setup-python@v7
         with:
@@ -38,5 +34,16 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  publicar:
+    needs: montar
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v5

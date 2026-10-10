@@ -287,6 +287,23 @@ class TestEntrada(unittest.TestCase):
         self.assertErro(chamar("enquadrar_cnae", cnae="6920-6/01", ano=2026, folha12=1),
                         "juntos")
 
+    def test_numero_fora_do_alcance(self):
+        # 1E+999999999 é número JSON válido e chega como Decimal
+        linha = json.dumps(pedido("tools/call", {"name": "calcular_das", "arguments": dict(
+            self.BASE, receita_mes=0)})).replace('"receita_mes": 0', '"receita_mes": 1E+999999999')
+        r = json.loads(tratar_linha(Servidor(), linha.encode()))["result"]
+        self.assertErro(r, "receita_mes: acima de R$ 1 trilhão")
+        self.assertErro(self.calcular(rbt12="2.000.000.000.000"), "rbt12: acima")
+        self.assertErro(self.calcular(receita_mes=Decimal("NaN")), "finito")
+        self.assertIs(self.calcular(receita_mes=10**12)["isError"], False)
+
+    def test_rbt12_zero_nao_cita_funcao_python(self):
+        for rbt12 in (0, -1, "0,00"):
+            with self.subTest(rbt12=rbt12):
+                r = self.calcular(rbt12=rbt12)
+                self.assertErro(r, "rbt12: tem de ser positivo")
+                self.assertNotIn("aliquota_inicio_atividade", r["content"][0]["text"])
+
     def test_arguments_que_nao_e_objeto(self):
         r = Servidor().responder(pedido("tools/call", {"name": "calcular_das",
                                                        "arguments": [1]}))["result"]
