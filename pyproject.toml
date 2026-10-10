@@ -26,5 +26,8 @@ Issues = "https://github.com/peterwkdev-creator/simples-nacional-br/issues"
 [tool.setuptools]
 packages = ["simples_nacional"]
 
+[tool.setuptools.package-data]
+simples_nacional = ["cnae_subclasses.tsv"]
+
 [tool.setuptools.dynamic]
 version = { attr = "simples_nacional.__version__" }

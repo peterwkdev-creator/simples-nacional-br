@@ -3,6 +3,26 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.3.0 — 10/10
+
+- Novo: enquadramento CNAE → anexo, no módulo `simples_nacional.cnae`.
+  `enquadrar(cnae, *, ano, folha12=None, rbt12=None)` devolve um
+  `Enquadramento` com a situação (impeditiva, ambígua, anexo, Fator R ou
+  sem classificação), o anexo, o fundamento legal e uma observação; com a
+  folha e o RBT12, resolve o Fator R.
+- Fontes: Res. CGSN 140/2018, art. 8º e Anexos VI e VII (conferidos em
+  10/10/2026 no portal de normas da Receita, sem mudança até a Res. CGSN
+  191); LC 123, art. 18; nomes das 1.332 subclasses da CNAE 2.3 (IBGE).
+- A indústria vai ao Anexo II até 2026 e ao Anexo I de 2027 em diante (LC
+  214/2025, art. 517), com o aviso de que o II fica para o produto da Zona
+  Franca de Manaus.
+- A ligação da subclasse ao anexo é leitura da biblioteca, não tabela
+  oficial; a saída diz isso.
+- Linha de comando: `python -m simples_nacional.cnae 6920-6/01 --ano 2026`,
+  com `--folha12` e `--rbt12` para o Fator R.
+- O pacote instalado leva `cnae_subclasses.tsv` (`package-data`).
+- Sem quebra: nada da 1.2.0 mudou.
+
 ## 1.2.0 — 10/10
 
 - Novo: planejamento do Fator R. `planejar_fator_r(folha12, rbt12,

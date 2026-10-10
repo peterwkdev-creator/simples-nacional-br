@@ -14,7 +14,7 @@ a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
 alíquota efetiva, valor do mês, a parte de cada tributo e, com o Fator R,
 a folha que leva ao Anexo III e quanto muda o DAS. Nenhum número sai do
 seu computador. Na primeira visita o navegador baixa
-cerca de 6 MB (o Python do Pyodide; a biblioteca são 25 KB); depois, cada
+cerca de 6 MB (o Python do Pyodide; a biblioteca são 55 KB); depois, cada
 conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 
 > **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
@@ -23,7 +23,7 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.2.0"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.3.0"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
@@ -99,10 +99,13 @@ R$ 477.000,00. É o erro relatado em
 - Repartição do valor do mês por tributo (IRPJ, CSLL, Cofins, PIS, CPP,
   ICMS, ISS e, de 2027 em diante, CBS e IBS), com a tabela de cada período
   de 2018 a 2033.
+- CNAE → anexo: a subclasse que impede o Simples, a ambígua (Res. CGSN
+  140, Anexos VI e VII) e, para as outras, o anexo pela LC 123, art. 18,
+  com o Fator R quando ele decide; a indústria vai ao Anexo I de 2027 em
+  diante.
 
-Fora do escopo, entre outros: enquadramento CNAE → anexo, sublimites
-estaduais, exportação e MEI. A lista completa
-e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
+Fora do escopo, entre outros: sublimites estaduais, exportação e MEI. A
+lista completa e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
 
 ## Como é testado
 
@@ -280,6 +283,39 @@ aliquotas_por_tributo("I", 1_000_000, ano=2027)["IRPJ"]  # 8,45% × 5,50% = 0,46
   ICMS ou ISS pela 5ª faixa (`icms_iss_no_das`) não se repartem aqui.
 - É estimativa: não substitui o PGDAS-D nem o contador.
 
+### CNAE → anexo
+
+```python
+from simples_nacional.cnae import enquadrar
+
+enquadrar("6920-6/01", ano=2026).anexo   # 'III': contabilidade, § 5º-B, XIV
+enquadrar("1091-1/02", ano=2026).anexo   # 'II': indústria até 2026
+enquadrar("1091-1/02", ano=2027).anexo   # 'I': indústria de 2027 em diante
+enquadrar("8299-7/04", ano=2026).situacao  # 'impeditiva': leiloeiro, Anexo VI
+
+e = enquadrar("7112-0/00", ano=2026, folha12=300_000, rbt12=1_000_000)
+e.situacao, e.fator_r, e.anexo           # ('fator_r', Decimal('0.3'), 'III')
+```
+
+```bash
+python -m simples_nacional.cnae 6920-6/01 1091102 --ano 2027
+```
+
+- A situação é uma de cinco: `impeditiva` (Anexo VI da Res. CGSN 140: com
+  ela no CNPJ, não há opção pelo Simples), `ambígua` (Anexo VII: parte da
+  subclasse impede, parte não), `anexo`, `fator_r` (Anexo III ou V; com
+  `folha12` e `rbt12`, o anexo vem resolvido) e `sem_classificacao`.
+- **Não há tabela oficial CNAE → anexo.** As listas dos Anexos VI e VII são
+  oficiais; a ligação de cada subclasse a um anexo é a leitura desta
+  biblioteca da LC 123, art. 18, com o parágrafo no `fundamento`. Onde a lei
+  não descreve a atividade sem margem de dúvida, a resposta é
+  `sem_classificacao`, nunca um palpite.
+- De 2027 em diante, a indústria vai ao Anexo I e o II fica só para produto
+  com IPI mantido, o da Zona Franca de Manaus (LC 123, art. 18, §§ 4º, II, e
+  5º, redação da LC 214/2025): a observação avisa.
+- O nome de cada uma das 1.332 subclasses vem da lista do IBGE (CNAE 2.3);
+  código inexistente dá `ValueError`.
+
 ## Fontes e limites
 
 | | Fonte (LC 123/2006, redação da LC 155/2016) |
@@ -296,6 +332,7 @@ aliquotas_por_tributo("I", 1_000_000, ano=2027)["IRPJ"]  # 8,45% × 5,50% = 0,46
 | Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
 | Repartição por tributo (`parcelas_das`, `aliquotas_por_tributo`): efetiva × percentual da faixa; na 5ª faixa de III e IV, ISS no teto da nota (*) do anexo | LC 123, Anexos I a V (redação da LC 155/2016); LC 214/2025, Anexos XVIII a XXII |
+| CNAE → anexo (`simples_nacional.cnae`): subclasse impeditiva e ambígua; para as outras, o anexo pela atividade, com o Fator R onde ele decide; indústria no Anexo II até 2026 e no I de 2027 em diante | Res. CGSN 140/2018, art. 8º e Anexos VI (redação da Res. CGSN 143/2018) e VII (redação da Res. CGSN 156/2020); LC 123, art. 18, §§ 4º e 5º a 5º-M; LC 214/2025, art. 517 |
 
 Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
 ([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
@@ -328,7 +365,7 @@ IBS. Quem optar por pagar esses dois tributos pelo regime regular (LC 123,
 art. 13, § 9º) os recolhe fora, e o DAS fica menor: esse cálculo não está
 aqui.
 
-Fora do escopo: enquadramento CNAE → anexo, sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
+Fora do escopo: sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
 início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
 têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
 sublimite a partir de 2027 (Res. CGSN 140, art. 24, com o IBS: dá erro) e,
@@ -341,9 +378,10 @@ e o MEI.
 - `simples_nacional/`: a biblioteca. `tabelas.py` e
   `tabelas_reparticao.py` têm os valores da lei, cada um com a fonte;
   `calculo.py`, as contas; `reparticao.py`, a repartição por tributo;
-  `planejamento.py`, o planejamento do Fator R; `formato.py`, a leitura e a
-  escrita de números no formato brasileiro; `__main__.py`, a linha de
-  comando.
+  `planejamento.py`, o planejamento do Fator R; `cnae.py`, o enquadramento
+  CNAE → anexo, com os dados em `cnae_dados.py` e os nomes do IBGE em
+  `cnae_subclasses.tsv`; `formato.py`, a leitura e a escrita de números no
+  formato brasileiro; `__main__.py`, a linha de comando.
 - `tests/`: os testes, inclusive o que roda os exemplos deste README.
 - `vitrine/`: a página do "Experimente no navegador". O GitHub Actions a
   monta e publica a cada push que muda a biblioteca, a página ou os testes
@@ -354,12 +392,13 @@ e o MEI.
 ## Compatibilidade
 
 Desde a 1.0.0, a numeração segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
-O que está em `simples_nacional.__all__` só muda de forma incompatível numa
-versão maior (2.0). Função, constante ou argumento novo sai numa versão
-menor (1.1); correção, numa de correção (1.0.1). Valor de tabela que muda
-por lei ou resolução nova sai numa versão menor, com a fonte e a data no
-[CHANGELOG.md](CHANGELOG.md). Nomes com `_` na frente e o texto dos avisos
-não fazem parte da promessa.
+O que está em `simples_nacional.__all__` e em `simples_nacional.cnae.__all__`
+só muda de forma incompatível numa versão maior (2.0). Função, constante ou
+argumento novo sai numa versão menor (1.1); correção, numa de correção
+(1.0.1). Valor de tabela que muda por lei ou resolução nova sai numa versão
+menor, com a fonte e a data no [CHANGELOG.md](CHANGELOG.md); o mesmo vale
+para o anexo de uma subclasse da CNAE, que é leitura da biblioteca. Nomes
+com `_` na frente e o texto dos avisos não fazem parte da promessa.
 
 ## Contribuir
 
