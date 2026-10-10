@@ -295,9 +295,53 @@ class TestCliIcmsIss(unittest.TestCase):
         self.assertIn("Valor do mês: R$ 39.750,00", texto)
         self.assertIn("--icms-iss-no-das", texto)
 
+    def test_desde_2027_soma_o_ibs(self):
+        _, texto = saida("--ano", "2027", "--anexo", "I", "--rbt12", "4500000",
+                         "--receita-mes", "375000", "--icms-iss-no-das")
+        self.assertIn("Alíquota efetiva: 14,6616% = 10,5000% da 6ª faixa, só federal, "
+                      "+ 4,1616% de ICMS ou ISS e IBS pela 5ª faixa (Res. CGSN 140, "
+                      "art. 21, IV, redação da Res. CGSN 190/2026)", texto)
+        self.assertIn("Valor do mês: R$ 54.981,05", texto)
+        _, texto = saida("--ano", "2033", "--anexo", "I", "--rbt12", "4500000",
+                         "--receita-mes", "375000", "--icms-iss-no-das")
+        self.assertIn("+ 4,1406% de IBS pela 5ª faixa", texto)
+
+    def test_mes_que_passa_do_sublimite(self):
+        # contas em test_calculo.TestMesQuePassaDoSublimite
+        _, texto = saida("--ano", "2026", "--anexo", "III", "--rbt12", "4000000",
+                         "--receita-mes", "500000", "--receita-ano", "3400000")
+        self.assertIn("Receita do ano antes do mês: R$ 3.400.000,00", texto)
+        self.assertIn("  R$ 200.000,00 dentro do sublimite, pela alíquota efetiva (§ 5º): "
+                      "× 22,7828%", texto)
+        self.assertIn("  R$ 300.000,00 acima do sublimite: federais pelo art. 21 + ICMS ou "
+                      "ISS pela 5ª faixa em R$ 3.600.000,00 (inciso I; § 6º): × 22,6659%", texto)
+        self.assertNotIn("acima de R$ 4.800.000,00:", texto)
+        self.assertIn("Valor do mês: R$ 113.563,08", texto)
+        self.assertIn("a partir de janeiro do ano seguinte (LC 123, art. 20, § 1º-A", texto)
+        self.assertNotIn("--icms-iss-no-das", texto)
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--rbt12", "2000000",
+                         "--receita-mes", "1000000", "--receita-ano", "4500000")
+        self.assertIn("  R$ 300.000,00 acima do sublimite: federais pelo art. 21 (inciso I; "
+                      "§ 6º): × 6,6068%", texto)
+        self.assertIn("  R$ 700.000,00 acima de R$ 4.800.000,00: federais da 6ª faixa em "
+                      "R$ 4.800.000,00 (inciso II; § 7º): × 11,1250%", texto)
+        self.assertIn("Valor do mês: R$ 97.695,33", texto)
+        self.assertIn("o impedimento já vale neste mês", texto)
+        self.assertIn("exclusão do Simples Nacional a partir de janeiro do ano seguinte", texto)
+        r = rodar("--ano", "2026", "--anexo", "I", "--rbt12", "2000000",
+                  "--receita-mes", "1", "--receita-ano", "5760000,01")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("9º-A", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
     def test_erros_de_uso(self):
         for args, erro in ((("--ano", "2027", "--rbt12", "4500000", "--receita-mes", "1",
-                             "--icms-iss-no-das"), "a partir de 2027"),
+                             "--receita-ano", "3500000"), "só é calculado até 2026"),
+                           (("--ano", "2026", "--rbt12", "4500000", "--receita-mes", "1",
+                             "--receita-ano", "3500000", "--icms-iss-no-das"),
+                            "não use --icms-iss-no-das junto"),
+                           (("--ano", "2026", "--receitas", "1", "--receita-ano", "1"),
+                            "--receita-ano só vale com --rbt12"),
                            (("--ano", "2026", "--receitas", "1", "--icms-iss-no-das"),
                             "--icms-iss-no-das só vale com --rbt12")):
             with self.subTest(args=args):

@@ -4,7 +4,7 @@
 
 Alíquota efetiva, valor do mês e Fator R do **Simples Nacional**, conferidos
 faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
-(redação da LC 155/2016) e, para 2027 e 2028, da LC 214/2025. Python puro,
+(redação da LC 155/2016) e, de 2027 em diante, da LC 214/2025. Python puro,
 só a biblioteca padrão, `Decimal` do começo ao fim.
 
 ```bash
@@ -56,7 +56,8 @@ R$ 477.000,00. É o erro relatado em
 | Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
 | Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
 | Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
-| Até 2026, RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): ICMS ou ISS pela 5ª faixa do anexo (efetiva da 5ª × repartição do ICMS/ISS nela: I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%), somado à 6ª faixa, que é só federal | Res. CGSN 140/2018, art. 21, III, b; repartição dos Anexos I a V |
+| RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): efetiva da 5ª faixa × repartição dela, somada à 6ª faixa, que é só federal. Até 2026, ICMS ou ISS (I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%); de 2027 a 2032, ICMS ou ISS e IBS, pela tabela de cada período; de 2033 em diante, só o IBS | Res. CGSN 140/2018, art. 21, III, b, e IV (redação da Res. CGSN 190/2026); repartição dos Anexos I a V da LC 123 e XVIII a XXII da LC 214 |
+| Até 2026, o mês em que a receita do ano passa do sublimite (`valor_devido_acima_do_sublimite`): a parcela dentro dele pela efetiva com ICMS ou ISS; a de cima, federais pela faixa do RBT12 mais ICMS ou ISS pela 5ª faixa em R$ 3,6 milhões; a que passa de R$ 4,8 milhões, federais da 6ª faixa em R$ 4,8 milhões mais o mesmo ICMS ou ISS. Avisa quando o impedimento e a exclusão valem (mês seguinte, se o excesso passa de 20%; senão, ano seguinte) | Res. CGSN 140/2018, arts. 12 e 24; LC 123, art. 3º, §§ 9º e 9º-A, e art. 20, §§ 1º e 1º-A |
 | Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
 | Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
@@ -65,7 +66,16 @@ Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
 ([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
 a fonte fica ao lado da tabela em `simples_nacional/tabelas.py`. A tabela de
 2027 e 2028 foi lida no mesmo dia no
-[texto atualizado da LC 214/2025](https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.html).
+[texto atualizado da LC 214/2025](https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.html);
+a repartição da 5ª faixa de 2027 em diante, no
+[texto compilado do Planalto](https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm),
+salvo em 09/10/2026 e conferido em 10/10/2026.
+
+No mês em que a receita do ano passa do sublimite, nos Anexos III e IV, a
+parte federal da faixa do RBT12 é a efetiva menos o ISS limitado a 5%: a
+diferença acima de 5% fica com os federais (Res. CGSN 140, art. 21, III, a).
+É a leitura da biblioteca; o ISS pela 5ª faixa em R$ 3,6 milhões entra
+inteiro, porque o teto ali só muda a repartição, não o total.
 
 A partir de 2027, o valor do mês é o DAS cheio, já com as parcelas de CBS e
 IBS. Quem optar por pagar esses dois tributos pelo regime regular (LC 123,
@@ -76,10 +86,10 @@ Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
 sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
 início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
 têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
-sublimite (Res. CGSN 140, art. 24), o ICMS, o ISS e o IBS pela 5ª faixa a
-partir de 2027 (Res. CGSN 190/2026: a repartição nova ainda não está aqui;
-com `icms_iss_no_das=True` dá erro), a empresa aberta no ano anterior ao da
-opção (Res. CGSN 140, art. 22, § 4º) e o MEI.
+sublimite a partir de 2027 (Res. CGSN 140, art. 24, com o IBS: dá erro) e,
+nele, o ano de início de atividade (§ 1º) e a exportação em separado (§ 8º),
+a empresa aberta no ano anterior ao da opção (Res. CGSN 140, art. 22, § 4º)
+e o MEI.
 
 ## Como é testado
 
@@ -92,9 +102,14 @@ opção (Res. CGSN 140, art. 22, § 4º) e o MEI.
   a 5 iguais às de hoje; 2018, 2026, 2029 e depois com a tabela de hoje.
 - Início de atividade: 1º, 2º, 4º e 12º mês até 2026; 1º, 2º, 3º, 5º e 13º
   a partir de 2027, com o mês anterior ao de apuração fora da média.
+- ICMS, ISS e IBS pela 5ª faixa em 2027, 2028, 2029, 2030, 2031, 2032, 2033
+  e depois, com a conta à mão; o mês que passa do sublimite com o RBT12 na
+  1ª, 4ª, 5ª e 6ª faixa, com e sem o teto de 5% do ISS, com e sem
+  impedimento, e nas fronteiras de 20% do sublimite e do limite.
 - Teste de mutação: trocar qualquer um dos 90 valores da tabela, uma das
-  cinco nominais de 2027, uma fronteira de ano ou uma regra do início de
-  atividade, um de cada vez, derruba pelo menos um teste.
+  cinco nominais de 2027, um dos 85 percentuais de repartição, uma fronteira
+  de ano ou uma regra do início de atividade, um de cada vez, derruba pelo
+  menos um teste.
 
 As regras do início de atividade foram lidas em 09/10/2026 no portal de
 normas da Receita:
@@ -129,6 +144,14 @@ avisos(4_500_000, ano=2026)                     # ['RBT12 acima do sublimite ...
 aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=True)       # Decimal('0.14740600')
 valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=True) # Decimal('55277.25')
 
+# de 2027 em diante, também o IBS (desde a 0.6.0): 10,5% + 12,36% × (33,50% + 0,17%)
+aliquota_efetiva("I", 4_500_000, ano=2027, icms_iss_no_das=True)       # Decimal('0.14661612')
+
+# até 2026, o mês em que a receita do ano (3.400.000 antes dele) passa do sublimite:
+# 200.000 dentro, pela efetiva com ISS, e 300.000 acima, federais + ISS em 3.600.000
+from simples_nacional import valor_devido_acima_do_sublimite
+valor_devido_acima_do_sublimite("III", 4_000_000, 500_000, 3_400_000, ano=2026)  # Decimal('113563.08')
+
 # início de atividade: receita de cada mês, do 1º até o de apuração
 valor_devido_inicio_atividade("I", [30_000, 50_000], ano=2026)  # Decimal('2825.00')
 valor_devido_inicio_atividade("I", [400_000], ano=2027)         # Decimal('16000.00'), 1ª faixa
@@ -139,6 +162,13 @@ Na linha de comando, o ICMS ou o ISS pela 5ª faixa vem com
 
 ```bash
 python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000 --icms-iss-no-das
+```
+
+Até 2026, `--receita-ano` (a receita do ano antes do mês de apuração) calcula
+o mês em que ela passa do sublimite e mostra cada parcela:
+
+```bash
+python -m simples_nacional --ano 2026 --anexo III --rbt12 4000000 --receita-mes 500000 --receita-ano 3400000
 ```
 
 Na linha de comando, o início de atividade vai em `--receitas`, separadas

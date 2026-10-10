@@ -528,17 +528,70 @@ class TestIcmsIssAcimaDoSublimite(unittest.TestCase):
             with self.subTest(ano=ano):
                 self.assertEqual(self.efetiva("I", 4_500_000, ano=ano), Decimal("0.147406"))
 
-    def test_a_partir_de_2027_nao_calcula(self):
-        for ano in (2027, 2029, 2033):
-            with self.subTest(ano=ano):
-                with self.assertRaisesRegex(ValueError, "Res. CGSN 190/2026"):
-                    self.efetiva("I", 4_500_000, ano=ano)
-                with self.assertRaisesRegex(ValueError, "a partir de 2027"):
-                    valor_devido("I", 4_500_000, "1000", ano=ano, icms_iss_no_das=True)
+    def test_a_partir_de_2027_soma_o_ibs(self):
+        # Res. CGSN 140, art. 21, IV (redação da Res. CGSN 190/2026): a mesma
+        # fórmula da 5ª faixa × (ICMS ou ISS + IBS) da tabela do ano na LC 214,
+        # Anexos XVIII a XXII. Em 2027 e 2028 a 6ª faixa tem a nominal 0,1
+        # ponto menor; de 2029 em diante, a da LC 155.
+        casos = {
+            # 6ª: (4.500.000 × 18,9% − 378.000) / 4.500.000 = 0,105
+            # 5ª: 0,1236 × (33,50% + 0,17%) = 0,1236 × 0,3367 = 0,04161612
+            ("I", 4_500_000, 2027): Decimal("0.105") + Decimal("0.1236") * Decimal("0.3367"),
+            # 6ª: (4.000.000 × 29,9% − 720.000) / 4.000.000 = 0,119
+            # 5ª: 0,125625 × (32,00% + 0,15%) = 0,125625 × 0,3215
+            ("II", 4_000_000, 2028): Decimal("0.119") + Decimal("0.125625") * Decimal("0.3215"),
+            # 6ª: (4.000.000 × 30,4% − 540.000) / 4.000.000 = 0,169
+            # 5ª: 0,214475 × (23,50% + 0,19%) = 0,214475 × 0,2369
+            ("V", 4_000_000, 2027): Decimal("0.169") + Decimal("0.214475") * Decimal("0.2369"),
+            # 2029: 6ª da LC 155, (4.500.000 × 19% − 378.000) / 4.500.000 = 0,106
+            # 5ª: 0,1236 × (30,15% + 3,35%) = 0,1236 × 0,335
+            ("I", 4_500_000, 2029): Decimal("0.106") + Decimal("0.1236") * Decimal("0.335"),
+            # 2030: 0,1575 + 0,1817125 × (32,00% + 8,00%)
+            ("IV", 4_800_000, 2030): Decimal("0.1575") + Decimal("0.1817125") * Decimal("0.40"),
+            # 2031: 0,168 + 0,17859 × (23,45% + 10,05%)
+            ("III", 4_000_000, 2031): Decimal("0.168") + Decimal("0.17859") * Decimal("0.335"),
+            # 2032: 0,12 + 0,125625 × (19,20% + 12,80%)
+            ("II", 4_000_000, 2032): Decimal("0.12") + Decimal("0.125625") * Decimal("0.32"),
+            # 2033 em diante, só o IBS: 0,17 + 0,214475 × 23,50%
+            ("V", 4_000_000, 2033): Decimal("0.17") + Decimal("0.214475") * Decimal("0.235"),
+            ("V", 4_000_000, 2040): Decimal("0.17") + Decimal("0.214475") * Decimal("0.235"),
+        }
+        for (anexo, rbt12, ano), esperado in casos.items():
+            with self.subTest(anexo=anexo, ano=ano):
+                self.assertEqual(self.efetiva(anexo, rbt12, ano=ano), esperado)
+        self.assertEqual(casos[("I", 4_500_000, 2027)], Decimal("0.14661612"))
+        # 375.000 × 14,661612% = 54.981,045 → 54.981,05 (ROUND_HALF_UP)
+        self.assertEqual(valor_devido("I", 4_500_000, "375000", ano=2027, icms_iss_no_das=True),
+                         Decimal("54981.05"))
         # até o sublimite a opção não muda nada, também em 2027
         from simples_nacional import aliquota_efetiva
         self.assertEqual(self.efetiva("I", 3_000_000, ano=2027),
                          aliquota_efetiva("I", 3_000_000, ano=2027))
+
+    def test_reparticao_da_5a_faixa_desde_2027(self):
+        # LC 214/2025, Anexos XVIII a XXII, 5ª faixa: (ICMS ou ISS, IBS), em %
+        from simples_nacional import quinta_faixa_icms_iss_ibs
+        lei = {
+            2027: {"I": ("33.50", "0.17"), "II": ("32.00", "0.15"), "III": ("33.50", "0.17"),
+                   "IV": ("40.00", "0.24"), "V": ("23.50", "0.19")},
+            2029: {"I": ("30.15", "3.35"), "II": ("28.80", "3.20"), "III": ("30.15", "3.35"),
+                   "IV": ("36.00", "4.00"), "V": ("21.15", "2.35")},
+            2030: {"I": ("26.80", "6.70"), "II": ("25.60", "6.40"), "III": ("26.80", "6.70"),
+                   "IV": ("32.00", "8.00"), "V": ("18.80", "4.70")},
+            2031: {"I": ("23.45", "10.05"), "II": ("22.40", "9.60"), "III": ("23.45", "10.05"),
+                   "IV": ("28.00", "12.00"), "V": ("16.45", "7.05")},
+            2032: {"I": ("20.10", "13.40"), "II": ("19.20", "12.80"), "III": ("20.10", "13.40"),
+                   "IV": ("24.00", "16.00"), "V": ("14.10", "9.40")},
+            2033: {"I": ("0", "33.50"), "II": ("0", "32.00"), "III": ("0", "33.50"),
+                   "IV": ("0", "40.00"), "V": ("0", "23.50")},
+        }
+        lei[2028], lei[2034] = lei[2027], lei[2033]
+        for ano, anexos in lei.items():
+            for anexo, (icms_iss, ibs) in anexos.items():
+                with self.subTest(ano=ano, anexo=anexo):
+                    self.assertEqual(quinta_faixa_icms_iss_ibs(anexo, ano),
+                                     (Decimal(icms_iss) / 100, Decimal(ibs) / 100))
+        self.assertEqual(quinta_faixa_icms_iss_ibs("I", 2026), (Decimal("0.335"), 0))
 
     def test_opcao_so_aceita_bool(self):
         from simples_nacional import aliquota_efetiva
@@ -562,9 +615,170 @@ class TestIcmsIssAcimaDoSublimite(unittest.TestCase):
         texto = " ".join(avisos(4_500_000, ano=2026))
         self.assertIn("icms_iss_no_das=True (na linha de comando, --icms-iss-no-das)", texto)
         self.assertIn("art. 12", texto)
-        # a partir de 2027 a opção não troca o texto
-        self.assertEqual(avisos(4_500_000, ano=2027, icms_iss_no_das=True),
-                         avisos(4_500_000, ano=2027))
+        self.assertIn("valor_devido_acima_do_sublimite (na linha de comando, --receita-ano)",
+                      texto)
+        # de 2027 em diante a opção soma também o IBS; o art. 24 fica de fora
+        texto = " ".join(avisos(4_500_000, ano=2027, icms_iss_no_das=True))
+        self.assertIn("soma à parte federal ICMS ou ISS e IBS pela 5ª faixa", texto)
+        self.assertIn("art. 21, IV, redação da Res. CGSN 190/2026", texto)
+        self.assertIn("(art. 24) não é calculado aqui", texto)
+        texto = " ".join(avisos(4_500_000, ano=2032))
+        self.assertIn("ICMS, ISS e IBS seguem no DAS pela 5ª faixa", texto)
+        self.assertIn("--icms-iss-no-das", texto)
+        texto = " ".join(avisos(4_500_000, ano=2033, icms_iss_no_das=True))
+        self.assertIn("soma à parte federal o IBS pela 5ª faixa", texto)
+        self.assertIn("recolhê-lo pelo Simples", texto)
+        self.assertNotIn("ICMS", texto)
+
+
+class TestMesQuePassaDoSublimite(unittest.TestCase):
+    """Res. CGSN 140, art. 24 (até 2026): o mês em que a receita do ano passa
+    do sublimite de R$ 3,6 milhões se divide em três parcelas (§§ 5º a 7º).
+
+    - dentro do sublimite: alíquota efetiva do art. 21, com ICMS ou ISS;
+    - acima do sublimite, até R$ 4,8 milhões: federais pelo art. 21 + ICMS ou
+      ISS de {[(3.600.000 × nominal da 5ª) − PD da 5ª] / 3.600.000} ×
+      repartição da 5ª (inciso I);
+    - acima de R$ 4,8 milhões: federais de [(4.800.000 × nominal da 6ª) − PD
+      da 6ª] / 4.800.000 + o mesmo ICMS ou ISS (inciso II).
+    """
+
+    def valor(self, anexo, rbt12, receita_mes, receita_ano, ano=2026):
+        from simples_nacional import valor_devido_acima_do_sublimite
+        return valor_devido_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano=ano)
+
+    def test_rbt12_na_6a_faixa(self):
+        # Anexo III, RBT12 4.000.000, 3.400.000 no ano, 500.000 no mês:
+        # 200.000 dentro, 300.000 acima do sublimite.
+        # dentro: 0,168 da 6ª + ISS pela 5ª com o RBT12, 0,17859 × 33,5%
+        # acima: 0,168 (6ª, toda federal) + ISS em 3.600.000:
+        #   (3.600.000 × 21% − 125.640) / 3.600.000 = 0,1751; × 33,5% = 0,0586585
+        dentro = Decimal("0.168") + Decimal("0.17859") * Decimal("0.335")
+        acima = Decimal("0.168") + Decimal("0.1751") * Decimal("0.335")
+        conta = 200_000 * dentro + 300_000 * acima
+        self.assertEqual(conta, Decimal("113563.0800"))
+        self.assertEqual(self.valor("III", 4_000_000, 500_000, 3_400_000), Decimal("113563.08"))
+
+    def test_impedido_e_acima_do_limite(self):
+        # Anexo I, RBT12 2.000.000 (5ª faixa), 4.500.000 no ano, 1.000.000 no mês.
+        # 4.500.000 passa 3.600.000 em mais de 20% (4.320.000): impedido desde
+        # este mês, sem ICMS. 300.000 até 4.800.000, 700.000 acima.
+        # federal do art. 21: (2.000.000 × 14,3% − 87.300) / 2.000.000 = 0,09935,
+        #   menos o ICMS da 5ª faixa (33,5%): 0,09935 × 66,5% = 0,06606775
+        # 6ª em 4.800.000: (4.800.000 × 19% − 378.000) / 4.800.000 = 0,11125
+        # 300.000 × 0,06606775 + 700.000 × 0,11125 = 97.695,325 → 97.695,33
+        self.assertEqual(self.valor("I", 2_000_000, 1_000_000, 4_500_000), Decimal("97695.33"))
+
+    def test_teto_de_5_do_iss_na_faixa_do_rbt12(self):
+        # Anexo III, RBT12 3.500.000 (5ª faixa): (3.500.000 × 21% − 125.640) /
+        # 3.500.000 = 609.360 / 3.500.000; ISS 33,5% dela passa de 5%, então o
+        # ISS fica em 5% e a diferença é federal: federal = efetiva − 0,05.
+        # 3.500.000 no ano, 200.000 no mês: 100.000 dentro, 100.000 acima.
+        efetiva = Decimal(609_360) / 3_500_000
+        self.assertGreater(efetiva * Decimal("0.335"), Decimal("0.05"))
+        conta = 100_000 * efetiva + 100_000 * (efetiva - Decimal("0.05")
+                                               + Decimal("0.1751") * Decimal("0.335"))
+        self.assertEqual(conta.quantize(Decimal("0.01")), Decimal("35686.42"))
+        self.assertEqual(self.valor("III", 3_500_000, 200_000, 3_500_000), Decimal("35686.42"))
+
+    def test_teto_do_iss_no_anexo_iv(self):
+        # Anexo IV, RBT12 3.600.000 (5ª faixa): (3.600.000 × 22% − 183.780) /
+        # 3.600.000 = 0,16895; ISS 40% = 6,758%, acima de 5%: federal 0,11895.
+        # 3.500.000 no ano, 200.000 no mês: 100.000 × 0,16895 + 100.000 ×
+        # (0,11895 + 0,16895 × 40%) = 16.895 + 18.653 = 35.548,00
+        self.assertEqual(self.valor("IV", 3_600_000, 200_000, 3_500_000), Decimal("35548.00"))
+
+    def test_passa_do_limite_sem_impedimento(self):
+        # Anexo I, RBT12 4.500.000, 4.300.000 no ano (sem impedimento), 600.000
+        # no mês: 500.000 até 4.800.000 e 100.000 acima, as duas com o ICMS
+        # em 3.600.000 (0,11875 × 33,5% = 0,03978125).
+        # 500.000 × (0,106 + 0,03978125) + 100.000 × (0,11125 + 0,03978125)
+        # = 72.890,625 + 15.103,125 = 87.993,75
+        self.assertEqual(self.valor("I", 4_500_000, 600_000, 4_300_000), Decimal("87993.75"))
+
+    def test_iss_abaixo_do_teto_e_1a_faixa(self):
+        # Anexo IV, RBT12 100.000 (1ª faixa, 4,5%, ISS 44,5%): 4,5% × 44,5% =
+        # 2,0025%, abaixo de 5%; federal 4,5% − 2,0025% = 2,4975%.
+        # ISS em 3.600.000: (3.600.000 × 22% − 183.780) / 3.600.000 = 0,16895; × 40%
+        # 3.500.000 no ano, 200.000 no mês: 100.000 × 4,5% + 100.000 × (0,024975 + 0,06758)
+        self.assertEqual(100_000 * Decimal("0.045")
+                         + 100_000 * (Decimal("0.024975") + Decimal("0.16895") * Decimal("0.40")),
+                         Decimal("13755.5000"))
+        self.assertEqual(self.valor("IV", 100_000, 200_000, 3_500_000), Decimal("13755.50"))
+        # Anexo V, RBT12 1.000.000 (4ª faixa, 20,5%, PD 17.100):
+        # (1.000.000 × 20,5% − 17.100) / 1.000.000 = 0,1879; ISS 21%
+        # → federal 0,1879 × 79% = 0,148441. ISS em 3.600.000: (3.600.000 × 23%
+        # − 62.100) / 3.600.000 = 0,21275; × 23,5% = 0,04999625.
+        # Todo o mês acima do sublimite (3.700.000 no ano): 100.000 × 0,19843725
+        self.assertEqual(self.valor("V", 1_000_000, 100_000, 3_700_000), Decimal("19843.73"))
+
+    def test_dentro_do_sublimite_e_o_valor_com_a_opcao(self):
+        for anexo, rbt12 in (("I", 4_500_000), ("III", 2_000_000)):
+            with self.subTest(anexo=anexo):
+                self.assertEqual(self.valor(anexo, rbt12, 375_000, 1_000_000),
+                                 valor_devido(anexo, rbt12, 375_000, ano=2026,
+                                              icms_iss_no_das=True))
+        # o mês que fecha exatamente em 3.600.000 ainda está dentro
+        self.assertEqual(self.valor("I", 4_500_000, 375_000, 3_225_000), Decimal("55277.25"))
+
+    def test_fronteiras_dos_20_por_cento(self):
+        # receita do ano até 4.320.000 (sublimite + 20%): ainda com ICMS; acima, sem
+        # Anexo I, RBT12 4.500.000, 100.000 no mês, todo acima do sublimite:
+        # com ICMS: 100.000 × (0,106 + 0,11875 × 33,5%) = 100.000 × 0,14578125
+        # sem ICMS: 100.000 × 0,106
+        self.assertEqual(self.valor("I", 4_500_000, 100_000, "4320000.00"), Decimal("14578.13"))
+        self.assertEqual(self.valor("I", 4_500_000, 100_000, "4320000.01"), Decimal("10600.00"))
+        # receita do ano até 5.760.000 (limite + 20%): calcula; acima, exclusão
+        from simples_nacional import LimiteExcedido
+        self.assertEqual(self.valor("I", 4_500_000, 100_000, "5760000.00"), Decimal("11125.00"))
+        with self.assertRaisesRegex(LimiteExcedido, "9º-A"):
+            self.valor("I", 4_500_000, 100_000, "5760000.01")
+
+    def test_reparticao_por_faixa_da_lei(self):
+        # LC 123, Anexos I a V (LC 155), "Percentual de Repartição", ICMS ou ISS
+        from simples_nacional import ICMS_ISS_POR_FAIXA, TETO_ISS
+        lei = {
+            "I": ("34.00", "34.00", "33.50", "33.50", "33.50"),
+            "II": ("32.00", "32.00", "32.00", "32.00", "32.00"),
+            "III": ("33.50", "32.00", "32.50", "32.50", "33.50"),
+            "IV": ("44.50", "40.00", "40.00", "40.00", "40.00"),
+            "V": ("14.00", "17.00", "19.00", "21.00", "23.50"),
+        }
+        self.assertEqual(ICMS_ISS_POR_FAIXA,
+                         {a: tuple(Decimal(p) / 100 for p in ps) for a, ps in lei.items()})
+        self.assertEqual(TETO_ISS, Decimal("0.05"))
+
+    def test_avisos_dos_meses_seguintes(self):
+        # LC 123, art. 20, §§ 1º e 1º-A, e art. 3º, §§ 9º e 9º-A: excesso de até
+        # 20% vale no ano seguinte; de mais de 20%, no mês seguinte.
+        # Sublimite + 20% = 4.320.000; limite + 20% = 5.760.000.
+        from simples_nacional.calculo import _avisos_receita_do_ano as av
+        D = Decimal
+        self.assertEqual(av(D("100000"), D("3500000")), [])
+        self.assertEqual(av(D("0"), D("3600000")), [])
+        self.assertIn("até 20% acima do sublimite", av(D("0.01"), D("3600000"))[0])
+        self.assertIn("até 20% acima do sublimite", av(D("20000"), D("4300000"))[0])
+        self.assertIn("mais de 20% acima do sublimite", av(D("20000.01"), D("4300000"))[0])
+        self.assertIn("a partir do mês seguinte, ICMS e ISS saem",
+                      av(D("20000.01"), D("4300000"))[0])
+        self.assertIn("o impedimento já vale neste mês", av(D("1"), D("4320000.01"))[0])
+        self.assertEqual(len(av(D("0"), D("4800000"))), 1)
+        self.assertIn("até 20% acima do limite", av(D("0.01"), D("4800000"))[1])
+        self.assertIn("até 20% acima do limite", av(D("10000"), D("5750000"))[1])
+        self.assertIn("mais de 20% acima do limite", av(D("10000.01"), D("5750000"))[1])
+        self.assertIn("a partir do mês seguinte (LC 123, art. 3º, § 9º)",
+                      av(D("10000.01"), D("5750000"))[1])
+
+    def test_so_ate_2026_e_entradas(self):
+        for ano in (2027, 2033):
+            with self.subTest(ano=ano):
+                with self.assertRaisesRegex(ValueError, "só é calculado até 2026"):
+                    self.valor("I", 4_500_000, 100_000, 3_500_000, ano=ano)
+        for mes, acumulada in ((-1, 0), (1, -1)):
+            with self.assertRaisesRegex(ValueError, "negativas"):
+                self.valor("I", 4_500_000, mes, acumulada)
+        with self.assertRaisesRegex(ValueError, "anexo"):
+            self.valor("VI", 4_500_000, 1, 1)
 
 
 if __name__ == "__main__":

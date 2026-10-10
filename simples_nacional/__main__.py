@@ -8,7 +8,9 @@ from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 from . import __version__
 from .calculo import (
     LimiteExcedido,
+    _avisos_receita_do_ano,
     _meses,
+    _parcelas_acima_do_sublimite,
     _rbt12_primeiros_meses,
     aliquota_efetiva,
     aliquota_inicio_atividade,
@@ -18,6 +20,7 @@ from .calculo import (
     faixa,
     fator_r,
     valor_devido,
+    valor_devido_acima_do_sublimite,
     valor_devido_inicio_atividade,
 )
 from .formato import CENTAVO, ler_numero, porcentagem, reais
@@ -36,6 +39,14 @@ def _efetiva_da_conta(efetiva, receita, valor):
         if (receita * percentual / 100).quantize(CENTAVO, ROUND_HALF_UP) == valor:
             return _texto(percentual)
     return porcentagem(efetiva)
+
+
+def _quinta_faixa(ano):
+    """O que --icms-iss-no-das soma pela 5ª faixa no ano, com a regra."""
+    if ano <= 2026:
+        return "ICMS ou ISS pela 5ª faixa (Res. CGSN 140, art. 21, III, b)"
+    tributos = "ICMS ou ISS e IBS" if ano <= 2032 else "IBS"
+    return f"{tributos} pela 5ª faixa (Res. CGSN 140, art. 21, IV, redação da Res. CGSN 190/2026)"
 
 
 def _fator_r_truncado(fator):
@@ -90,9 +101,14 @@ def main(argv=None):
                         "para conferir o limite e o sublimite proporcionais do ano "
                         "(LC 123, art. 3º, §§ 2º e 11)")
     p.add_argument("--icms-iss-no-das", action="store_true",
-                   help="até 2026, com RBT12 acima de R$ 3,6 milhões e a receita do ano "
-                        "dentro do sublimite: soma ICMS ou ISS pela 5ª faixa "
-                        "(Res. CGSN 140, art. 21, III, b)")
+                   help="com RBT12 acima de R$ 3,6 milhões e a receita do ano dentro do "
+                        "sublimite: soma ICMS ou ISS pela 5ª faixa (Res. CGSN 140, art. 21, "
+                        "III, b); desde 2027, também o IBS, e desde 2033 só o IBS (art. 21, "
+                        "IV, redação da Res. CGSN 190/2026)")
+    p.add_argument("--receita-ano", type=_numero,
+                   help="até 2026, com --rbt12: receita bruta acumulada no ano-calendário "
+                        "antes do mês de apuração, para o mês em que a receita do ano passa "
+                        "do sublimite de R$ 3,6 milhões (Res. CGSN 140, art. 24)")
     p.add_argument("--folha12", type=_numero,
                    help="folha de salários dos 12 meses do RBT12 (art. 18, § 24), "
                         "obrigatória com --anexo fator-r")
@@ -110,6 +126,11 @@ def main(argv=None):
         p.error("--mes-inicio só vale com --receitas")
     if a.receitas is not None and a.icms_iss_no_das:
         p.error("--icms-iss-no-das só vale com --rbt12")
+    if a.receitas is not None and a.receita_ano is not None:
+        p.error("--receita-ano só vale com --rbt12")
+    if a.receita_ano is not None and a.icms_iss_no_das:
+        p.error("--receita-ano já decide o ICMS e o ISS pela receita do ano: "
+                "não use --icms-iss-no-das junto")
 
     linhas = []
     anexo = a.anexo.upper()
@@ -132,8 +153,14 @@ def main(argv=None):
             f = faixa(anexo, rbt12, ano=a.ano)
             federal = aliquota_efetiva(anexo, rbt12, ano=a.ano)
             efetiva = aliquota_efetiva(anexo, rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)
-            valor = valor_devido(anexo, rbt12, receita_mes, ano=a.ano,
-                                 icms_iss_no_das=a.icms_iss_no_das)
+            if a.receita_ano is None:
+                valor = valor_devido(anexo, rbt12, receita_mes, ano=a.ano,
+                                     icms_iss_no_das=a.icms_iss_no_das)
+            else:
+                valor = valor_devido_acima_do_sublimite(anexo, rbt12, receita_mes,
+                                                        a.receita_ano, ano=a.ano)
+                parcelas = _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes,
+                                                        a.receita_ano, a.ano)
         else:
             rbt12, regra = _rbt12_primeiros_meses(a.receitas, a.ano)
             receita_mes = a.receitas[-1]
@@ -168,12 +195,29 @@ def main(argv=None):
         + ("= nominal da 1ª faixa" if rbt12 is None
            else "= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if efetiva == federal
            else f"= {porcentagem(federal)} da 6ª faixa, só federal, + "
-                f"{porcentagem(efetiva - federal)} de ICMS ou ISS pela 5ª faixa "
-                "(Res. CGSN 140, art. 21, III, b)"),
-        f"Valor do mês: R$ {reais(valor)} "
-        f"= R$ {reais(receita_mes)} × {_efetiva_da_conta(efetiva, receita_mes, valor)}",
+                f"{porcentagem(efetiva - federal)} de {_quinta_faixa(a.ano)}"),
     ]
-    if rbt12 is not None:
+    if a.receita_ano is None:
+        linhas.append(f"Valor do mês: R$ {reais(valor)} "
+                      f"= R$ {reais(receita_mes)} × {_efetiva_da_conta(efetiva, receita_mes, valor)}")
+    else:
+        linhas.append(f"Receita do ano antes do mês: R$ {reais(a.receita_ano)}; o mês se divide "
+                      "pelo sublimite e pelo limite (Res. CGSN 140, art. 24):")
+        icms_iss = ("" if a.receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2")
+                    else " + ICMS ou ISS pela 5ª faixa em R$ 3.600.000,00")
+        for (parcela, aliquota), nome in zip(parcelas, (
+                "dentro do sublimite, pela alíquota efetiva (§ 5º)",
+                f"acima do sublimite: federais pelo art. 21{icms_iss} (inciso I; § 6º)",
+                "acima de R$ 4.800.000,00: federais da 6ª faixa em R$ 4.800.000,00"
+                f"{icms_iss} (inciso II; § 7º)")):
+            if parcela:
+                linhas.append(f"  R$ {reais(parcela)} {nome}: × {porcentagem(aliquota)}")
+        linhas.append(f"Valor do mês: R$ {reais(valor)} = soma das parcelas, "
+                      "arredondada no centavo")
+    if rbt12 is not None and a.receita_ano is not None:
+        linhas += [f"Aviso: {texto}"
+                   for texto in _avisos_receita_do_ano(receita_mes, a.receita_ano)]
+    elif rbt12 is not None:
         linhas += [f"Aviso: {texto}"
                    for texto in avisos(rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)]
     if a.receitas is not None:
