@@ -23,8 +23,9 @@ class TestExemplosDoReadme(unittest.TestCase):
     def test_instalar_pela_tag_da_versao_atual(self):
         # a 1.1.0 e a 1.2.0 saíram com o README ainda em @v1.0.0
         from simples_nacional import __version__
-        tags = re.findall(r"simples-nacional-br@v([\d.]+)", README.read_text(encoding="utf-8"))
-        self.assertEqual(tags, [__version__])
+        tags = re.findall(r"simples-nacional-br@v(\d+(?:\.\d+)*)", README.read_text(encoding="utf-8"))
+        self.assertTrue(tags, "o README não manda instalar pela tag")
+        self.assertEqual(set(tags), {__version__})
 
 
 if __name__ == "__main__":

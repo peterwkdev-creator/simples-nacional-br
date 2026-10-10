@@ -85,7 +85,8 @@ def arquivos():
         ("LICENSE", (BIBLIOTECA / "LICENSE").read_bytes()),
         ("server/main.py", (BIBLIOTECA / "mcpb" / "main.py").read_bytes()),
     ]
-    for p in sorted((BIBLIOTECA / "simples_nacional").iterdir()):
+    # pelo texto do nome: o Path do Windows ordena sem caixa, e o zip mudaria no CI
+    for p in sorted((BIBLIOTECA / "simples_nacional").iterdir(), key=lambda p: p.name):
         if p.suffix in (".py", ".tsv"):
             itens.append((f"server/lib/simples_nacional/{p.name}", p.read_bytes()))
     return itens

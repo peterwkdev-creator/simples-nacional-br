@@ -13,6 +13,13 @@ cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
   parte, e trocar um deles na repartição derruba teste.
 - Testes: o texto da conta à mão de cada faixa é conferido contra a linha
   (um erro de digitação nele derruba o teste).
+- Vitrine: "Usar o exemplo" com os mesmos valores não esconde mais o
+  resultado.
+- Pacote MCPB: os arquivos entram no zip pela ordem do texto do nome (o
+  Windows ordena sem caixa); o hash de hoje não muda.
+- Testes: o package-data e o `packages` do `pyproject.toml` conferidos em
+  toda subpasta do pacote (antes, só o primeiro nível); a tag do README
+  aceita ponto final e repetição, e exige pelo menos uma.
 - Limpeza: saem `calculo._decimal` e `__main__._porcentagem`, nomes
   privados da 0.3.0 (fora da API pública; use `para_decimal` e
   `porcentagem`); `.venv/` e `*.mcpb` no `.gitignore`.

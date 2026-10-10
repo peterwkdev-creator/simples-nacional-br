@@ -13,7 +13,6 @@ mão pelo nome da subclasse contra o inciso citado.
 """
 
 import os
-import re
 import subprocess
 import sys
 import unittest
@@ -282,20 +281,6 @@ class TestCodigo(unittest.TestCase):
     def test_codigo_que_nao_existe(self):
         with self.assertRaisesRegex(ValueError, "não existe na CNAE"):
             enquadrar("9999-9/99", ano=ANO)
-
-
-class TestEmpacotamento(unittest.TestCase):
-
-    def test_todo_arquivo_que_nao_e_py_esta_no_package_data(self):
-        # sem isso, o pip install deixa o .tsv de fora e subclasses() quebra
-        pacote = BIBLIOTECA / "simples_nacional"
-        dados = {p.name for p in pacote.iterdir()
-                 if p.is_file() and p.suffix not in (".py", ".pyc")}
-        pyproject = (BIBLIOTECA / "pyproject.toml").read_text(encoding="utf-8")
-        bloco = re.search(r"\[tool\.setuptools\.package-data\]\n(.*?)(?:\n\[|\Z)", pyproject, re.S)
-        declarados = set(re.findall(r'"([^"]+)"', bloco.group(1))) if bloco else set()
-        self.assertEqual(dados, {"cnae_subclasses.tsv"})
-        self.assertEqual(dados - declarados, set())
 
 
 def rodar(*args, env=None):
