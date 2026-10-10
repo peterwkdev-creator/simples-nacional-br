@@ -11,7 +11,9 @@ só a biblioteca padrão, `Decimal` do começo ao fim.
 
 **[Experimente no navegador](https://peterwkdev-creator.github.io/simples-nacional-br/)**:
 a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide).
-Nenhum número sai do seu computador.
+Nenhum número sai do seu computador. Na primeira visita o navegador baixa
+cerca de 6 MB (o Python do Pyodide; a biblioteca são 20 KB); depois, cada
+conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 
 ```bash
 python -m unittest
