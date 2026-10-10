@@ -41,6 +41,7 @@ class TestPacote(unittest.TestCase):
         with zipfile.ZipFile(cls.mcpb) as z:
             cls.nomes = z.namelist()
             cls.datas = {i.date_time for i in z.infolist()}
+            cls.sistemas = {i.create_system for i in z.infolist()}
             cls.manifest = json.loads(z.read("manifest.json"))
 
     @classmethod
@@ -89,6 +90,8 @@ class TestPacote(unittest.TestCase):
     def test_reprodutivel(self):
         # data fixa em cada entrada: duas montagens no mesmo segundo não provam isso
         self.assertEqual(self.datas, {montar.DATA_FIXA})
+        # o mesmo hash no Windows e no Linux do CI (a 1.4.1 saiu com 0 e 3)
+        self.assertEqual(self.sistemas, {3})
         self.assertEqual(montar.montar_zip(), self.dados)
 
     def test_roda_pelo_comando_do_manifest(self):

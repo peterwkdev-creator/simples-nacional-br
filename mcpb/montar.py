@@ -97,6 +97,9 @@ def montar_zip():
         for caminho, dados in arquivos():
             info = zipfile.ZipInfo(caminho, DATA_FIXA)
             info.compress_type = zipfile.ZIP_DEFLATED
+            # Unix sempre: o padrão é o sistema que monta (0 no Windows, 3 no
+            # Linux do CI), e o hash mudaria de uma máquina para outra
+            info.create_system = 3
             info.external_attr = 0o644 << 16
             z.writestr(info, dados)
     return buf.getvalue()
