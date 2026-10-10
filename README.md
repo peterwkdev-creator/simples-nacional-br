@@ -21,7 +21,7 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v0.6.0"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.0.0"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
@@ -278,12 +278,23 @@ e o MEI.
 - `docs/`: o GIF do começo deste README.
 - [`CHANGELOG.md`](CHANGELOG.md): o que mudou em cada versão.
 
+## Compatibilidade
+
+Desde a 1.0.0, a numeração segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+O que está em `simples_nacional.__all__` só muda de forma incompatível numa
+versão maior (2.0). Função, constante ou argumento novo sai numa versão
+menor (1.1); correção, numa de correção (1.0.1). Valor de tabela que muda
+por lei ou resolução nova sai numa versão menor, com a fonte e a data no
+[CHANGELOG.md](CHANGELOG.md). Nomes com `_` na frente e o texto dos avisos
+não fazem parte da promessa.
+
 ## Contribuir
 
 Achou um valor diferente do PGDAS-D ou da sua conta, ou um caso de borda
 que falta? [Abra uma issue](https://github.com/peterwkdev-creator/simples-nacional-br/issues/new/choose)
 pelo modelo "Valor diferente do esperado", com números inventados. Para
-mandar código, veja o [CONTRIBUTING.md](CONTRIBUTING.md).
+mandar código, veja o [CONTRIBUTING.md](CONTRIBUTING.md); a conversa segue
+o [código de conduta](CODE_OF_CONDUCT.md).
 
 ## Licença
 

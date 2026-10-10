@@ -3,6 +3,22 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.0.0 — 10/10
+
+- API estável: o que está em `simples_nacional.__all__` só muda de forma
+  incompatível numa versão maior (seção "Compatibilidade" do README).
+- Quebra: `avisos` pede `ano=`, como os cálculos desde a 0.2.0. Sem ele, o
+  texto do sublimite saía o de até 2026 mesmo numa conta de 2027 ou depois.
+- Quebra: `quinta_faixa_icms_iss_ibs(anexo, *, ano)`: `ano` só por nome e
+  conferido como nos cálculos (antes de 2018, ou que não seja `int`, dá
+  erro); anexo em minúscula aceito; anexo inválido dá `ValueError` em
+  português.
+- Quebra: sai `ICMS_ISS_QUINTA_FAIXA`, que repetia
+  `ICMS_ISS_POR_FAIXA[anexo][4]`; use esse ou
+  `quinta_faixa_icms_iss_ibs(anexo, ano=2026)[0]`.
+- README reordenado (instalar, uso curto, fontes no fim), CONTRIBUTING,
+  código de conduta e modelo de issue "Valor diferente do esperado".
+
 ## 0.6.0 — 10/10
 
 - `icms_iss_no_das=True` vale também de 2027 em diante: soma à 6ª faixa,

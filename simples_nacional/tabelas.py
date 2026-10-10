@@ -111,11 +111,6 @@ ICMS_ISS_POR_FAIXA = {
 # art. 21, III, a, até 2026).
 TETO_ISS = Decimal("0.05")
 
-# A 5ª faixa da tabela acima: I 33,50%, II 32,00%, III 33,50%, IV 40,00%,
-# V 23,50%. Acima do sublimite, sem impedimento no ano, ICMS e ISS seguem no
-# DAS por ela (Res. CGSN 140, art. 21, III, b, até 31/12/2026).
-ICMS_ISS_QUINTA_FAIXA = {anexo: partes[4] for anexo, partes in ICMS_ISS_POR_FAIXA.items()}
-
 # LC 214/2025, Anexos XVIII a XXII, tabelas "Percentual de Repartição dos
 # Tributos" de cada período (texto compilado do Planalto,
 # https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm, já com a LC
@@ -139,15 +134,22 @@ _QUINTA_FAIXA_DESDE_2027 = {
 }
 
 
-def quinta_faixa_icms_iss_ibs(anexo, ano):
+def quinta_faixa_icms_iss_ibs(anexo, *, ano):
     """(ICMS ou ISS, IBS) da repartição da 5ª faixa no ano-calendário, em fração.
 
-    Até 2026, o IBS é zero. `anexo` em maiúsculas (I a V).
+    Até 2026, a 5ª faixa de ICMS_ISS_POR_FAIXA (I 33,50%, II 32,00%, III
+    33,50%, IV 40,00%, V 23,50%): acima do sublimite, sem impedimento no ano,
+    ICMS e ISS seguem no DAS por ela (Res. CGSN 140, art. 21, III, b, até
+    31/12/2026); o IBS é zero. `ano` se confere como nos cálculos.
     """
+    vigencia(ano)
+    chave = anexo.upper() if isinstance(anexo, str) else None
+    if chave not in ICMS_ISS_POR_FAIXA:
+        raise ValueError(f"anexo: esperado I, II, III, IV ou V, veio {anexo!r}")
     if ano <= 2026:
-        return ICMS_ISS_QUINTA_FAIXA[anexo], Decimal(0)
+        return ICMS_ISS_POR_FAIXA[chave][4], Decimal(0)
     inicio = max(a for a in _QUINTA_FAIXA_DESDE_2027 if a <= ano)
-    icms_iss, ibs = _QUINTA_FAIXA_DESDE_2027[inicio][anexo]
+    icms_iss, ibs = _QUINTA_FAIXA_DESDE_2027[inicio][chave]
     return Decimal(icms_iss) / 100, Decimal(ibs) / 100
 
 # LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou

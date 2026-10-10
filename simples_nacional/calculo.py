@@ -45,7 +45,7 @@ def faixa(anexo, rbt12, *, ano):
     janeiro.
     """
     faixas = _anexo(anexo, ano)
-    rbt12 = _decimal(rbt12, "rbt12")
+    rbt12 = para_decimal(rbt12, "rbt12")
     if rbt12 <= 0:
         raise ValueError(
             "rbt12 tem de ser positivo; nos primeiros meses de atividade use "
@@ -73,7 +73,7 @@ def _icms_iss_quinta_faixa(anexo, rbt12, ano):
     """
     quinta = _anexo(anexo, ano)[4]
     efetiva = (rbt12 * quinta.aliquota - quinta.parcela_deduzir) / rbt12
-    icms_iss, ibs = quinta_faixa_icms_iss_ibs(anexo.upper(), ano)
+    icms_iss, ibs = quinta_faixa_icms_iss_ibs(anexo, ano=ano)
     return efetiva * (icms_iss + ibs)
 
 
@@ -113,7 +113,7 @@ def valor_devido(anexo, rbt12, receita_mes, *, ano, icms_iss_no_das=False):
     as parcelas de CBS e IBS; quem optar pelo regime regular desses tributos
     (LC 123, art. 13, § 9º) as paga fora e o DAS fica menor.
     """
-    receita_mes = _decimal(receita_mes, "receita_mes")
+    receita_mes = para_decimal(receita_mes, "receita_mes")
     if receita_mes < 0:
         raise ValueError("receita_mes não pode ser negativa")
     efetiva = aliquota_efetiva(anexo, rbt12, ano=ano, icms_iss_no_das=icms_iss_no_das)
@@ -177,8 +177,8 @@ def _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano):
             "o mês em que a receita do ano passa do sublimite (Res. CGSN 140, art. 24) "
             "só é calculado até 2026: a partir de 2027 o IBS entra na conta e a "
             "redação da Res. CGSN 190/2026 não é calculada aqui")
-    receita_mes = _decimal(receita_mes, "receita_mes")
-    receita_ano = _decimal(receita_ano, "receita_ano")
+    receita_mes = para_decimal(receita_mes, "receita_mes")
+    receita_ano = para_decimal(receita_ano, "receita_ano")
     if receita_mes < 0 or receita_ano < 0:
         raise ValueError("receita_mes e receita_ano não podem ser negativas")
     if receita_ano > LIMITE_RECEITA * Decimal("1.2"):
@@ -190,7 +190,7 @@ def _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano):
     acima_sub = min(max(total - SUBLIMITE_ICMS_ISS, Decimal(0)), receita_mes)
     acima_lim = min(max(total - LIMITE_RECEITA, Decimal(0)), receita_mes)
     dentro = receita_mes - acima_sub
-    rbt12 = _decimal(rbt12, "rbt12")
+    rbt12 = para_decimal(rbt12, "rbt12")
     quinta, sexta = _anexo(anexo, ano)[4], _anexo(anexo, ano)[5]
     if receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2"):
         icms_iss = Decimal(0)
@@ -242,8 +242,8 @@ def fator_r(folha12, rbt12):
     A partir de 2027 a folha também é a dos 12 meses antecedentes ao mês
     anterior ao de apuração (§ 24, redação da LC 214).
     """
-    folha12 = _decimal(folha12, "folha12")
-    rbt12 = _decimal(rbt12, "rbt12")
+    folha12 = para_decimal(folha12, "folha12")
+    rbt12 = para_decimal(rbt12, "rbt12")
     if folha12 < 0:
         raise ValueError("folha12 não pode ser negativa")
     if rbt12 <= 0:
@@ -266,7 +266,7 @@ def rbt12_inicio_atividade(receita_acumulada, meses):
     partir de 2027, os antecedentes ao mês anterior. Para o mês a mês,
     inclusive o primeiro, use aliquota_inicio_atividade.
     """
-    receita_acumulada = _decimal(receita_acumulada, "receita_acumulada")
+    receita_acumulada = para_decimal(receita_acumulada, "receita_acumulada")
     if isinstance(meses, bool) or not isinstance(meses, int) or not 1 <= meses <= 11:
         raise ValueError("meses tem de ser int de 1 a 11; com 12 ou mais use o RBT12 real")
     if receita_acumulada < 0:
@@ -283,7 +283,7 @@ def _rbt12_primeiros_meses(receitas, ano):
     vigencia(ano)
     if isinstance(receitas, (str, bytes)) or not isinstance(receitas, Sequence):
         raise TypeError("receitas: lista com a receita de cada mês, do 1º de atividade ao de apuração")
-    receitas = [_decimal(r, "receitas") for r in receitas]
+    receitas = [para_decimal(r, "receitas") for r in receitas]
     if any(r < 0 for r in receitas):
         raise ValueError("receitas: nenhum mês pode ser negativo")
     mes = len(receitas)
@@ -326,12 +326,12 @@ def aliquota_inicio_atividade(anexo, receitas, *, ano):
 def valor_devido_inicio_atividade(anexo, receitas, *, ano):
     """Receita do mês de apuração (a última) × aliquota_inicio_atividade, em centavos."""
     efetiva = aliquota_inicio_atividade(anexo, receitas, ano=ano)
-    return (_decimal(receitas[-1], "receitas") * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
+    return (para_decimal(receitas[-1], "receitas") * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 
 def _aviso_sublimite(ano, icms_iss_no_das=False):
     limite = f"R$ {reais(SUBLIMITE_ICMS_ISS)}"
-    if ano is None or ano <= 2026:
+    if ano <= 2026:
         lei, regra = "LC 123, art. 13-A", "Res. CGSN 140, art. 21, III, b"
         quais, seguem, saem = "ICMS e ISS", "seguem", "ICMS e ISS saem"
         soma = "ICMS ou ISS"
@@ -370,20 +370,19 @@ def _aviso_sublimite(ano, icms_iss_no_das=False):
         f"ente; {mes}.")
 
 
-def avisos(rbt12, *, ano=None, icms_iss_no_das=False):
+def avisos(rbt12, *, ano, icms_iss_no_das=False):
     """Avisos sobre os limites.
 
     O texto do sublimite muda com o ano-calendário de apuração: até 2026, ICMS e
     ISS; de 2027 a 2032, também o IBS (LC 214/2025, art. 517); de 2033 em
-    diante, só o IBS (art. 518). Sem `ano`, vale o texto até 2026.
+    diante, só o IBS (art. 518).
     `icms_iss_no_das=True` troca o texto pelo do valor com eles pela 5ª faixa.
     RBT12 zero ou negativo é ValueError, como em faixa.
     """
-    rbt12 = _decimal(rbt12, "rbt12")
+    rbt12 = para_decimal(rbt12, "rbt12")
     if rbt12 <= 0:
         raise ValueError("rbt12 tem de ser positivo")
-    if ano is not None:
-        vigencia(ano)  # mesma validação do ano dos cálculos
+    vigencia(ano)  # mesma validação do ano dos cálculos
     saida = []
     if rbt12 > LIMITE_RECEITA:
         saida.append(
@@ -423,7 +422,7 @@ def avisos_inicio_atividade(receitas, mes_inicio, *, ano):
     _rbt12_primeiros_meses(receitas, ano)  # mesma validação da lista e do ano
     meses = 13 - mes_inicio
     ano_inicio = ano if len(receitas) <= meses else ano - 1
-    acumulada = sum((_decimal(r, "receitas") for r in receitas[:meses]), Decimal(0))
+    acumulada = sum((para_decimal(r, "receitas") for r in receitas[:meses]), Decimal(0))
     limite, sublimite = LIMITE_RECEITA / 12 * meses, SUBLIMITE_ICMS_ISS / 12 * meses
     receita = (f"Receita acumulada no ano de início de atividade ({ano_inicio}) de "
                f"R$ {reais(acumulada)}")

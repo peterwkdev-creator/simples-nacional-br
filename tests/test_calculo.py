@@ -104,7 +104,6 @@ class TestLimite(unittest.TestCase):
 class TestAvisos(unittest.TestCase):
 
     def test_sem_aviso_ate_o_sublimite(self):
-        self.assertEqual(avisos(3_600_000), [])
         for ano in (2026, 2027, 2033):
             self.assertEqual(avisos(3_600_000, ano=ano), [])
 
@@ -112,10 +111,10 @@ class TestAvisos(unittest.TestCase):
         for rbt12 in (0, -5, "0.00"):
             with self.subTest(rbt12=rbt12):
                 with self.assertRaisesRegex(ValueError, "rbt12 tem de ser positivo"):
-                    avisos(rbt12)
+                    avisos(rbt12, ano=2026)
 
     def test_sublimite(self):
-        texto = " ".join(avisos("3600000.01"))
+        texto = " ".join(avisos("3600000.01", ano=2026))
         self.assertIn("3.600.000,00", texto)
         self.assertIn("ICMS", texto)
         self.assertIn("ISS", texto)
@@ -123,7 +122,8 @@ class TestAvisos(unittest.TestCase):
     def test_sublimite_ate_2026_depende_da_receita_do_ano(self):
         # Res. CGSN 140, art. 21, III, b: sublimite não excedido no ano, ICMS e
         # ISS seguem no DAS pela 5ª faixa; o excesso se mede no ano (art. 24)
-        for texto in (" ".join(avisos(4_500_000)), " ".join(avisos(4_500_000, ano=2026))):
+        for ano in (2018, 2026):
+            texto = " ".join(avisos(4_500_000, ano=ano))
             self.assertIn("receita acumulada no ano-calendário", texto)
             self.assertIn("art. 21, III, b", texto)
             self.assertIn("5ª faixa", texto)
@@ -148,6 +148,11 @@ class TestAvisos(unittest.TestCase):
         self.assertNotIn("ICMS", texto)
         self.assertNotIn("ISS ", texto)
 
+    def test_ano_obrigatorio(self):
+        # sem ele o texto do sublimite seria o de até 2026 numa conta de 2027
+        with self.assertRaisesRegex(TypeError, "ano"):
+            avisos(4_500_000)
+
     def test_ano_invalido(self):
         with self.assertRaises(TypeError):
             avisos(4_500_000, ano="2027")
@@ -155,7 +160,7 @@ class TestAvisos(unittest.TestCase):
             avisos(4_500_000, ano=2017)
 
     def test_acima_do_limite(self):
-        self.assertIn("4.800.000,00", " ".join(avisos(4_800_001)))
+        self.assertIn("4.800.000,00", " ".join(avisos(4_800_001, ano=2026)))
         self.assertIn("4.800.000,00", " ".join(avisos(4_800_001, ano=2027)))
 
 
@@ -589,9 +594,21 @@ class TestIcmsIssAcimaDoSublimite(unittest.TestCase):
         for ano, anexos in lei.items():
             for anexo, (icms_iss, ibs) in anexos.items():
                 with self.subTest(ano=ano, anexo=anexo):
-                    self.assertEqual(quinta_faixa_icms_iss_ibs(anexo, ano),
+                    self.assertEqual(quinta_faixa_icms_iss_ibs(anexo, ano=ano),
                                      (Decimal(icms_iss) / 100, Decimal(ibs) / 100))
-        self.assertEqual(quinta_faixa_icms_iss_ibs("I", 2026), (Decimal("0.335"), 0))
+        self.assertEqual(quinta_faixa_icms_iss_ibs("I", ano=2026), (Decimal("0.335"), 0))
+
+    def test_quinta_faixa_confere_as_entradas(self):
+        from simples_nacional import quinta_faixa_icms_iss_ibs as quinta
+        self.assertEqual(quinta("v", ano=2027), (Decimal("0.235"), Decimal("0.0019")))
+        with self.assertRaisesRegex(ValueError, "anexo"):
+            quinta("VI", ano=2026)
+        with self.assertRaisesRegex(ValueError, "2018"):
+            quinta("I", ano=2017)
+        with self.assertRaisesRegex(TypeError, "ano"):
+            quinta("I", ano="2027")
+        with self.assertRaises(TypeError):
+            quinta("I", 2027)  # ano só por nome, como nas outras funções
 
     def test_opcao_so_aceita_bool(self):
         from simples_nacional import aliquota_efetiva
@@ -601,8 +618,9 @@ class TestIcmsIssAcimaDoSublimite(unittest.TestCase):
                     aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=valor)
 
     def test_reparticao_da_tabela(self):
-        from simples_nacional import ICMS_ISS_QUINTA_FAIXA
-        self.assertEqual(ICMS_ISS_QUINTA_FAIXA, {
+        from simples_nacional import ICMS_ISS_POR_FAIXA
+        quinta = {anexo: partes[4] for anexo, partes in ICMS_ISS_POR_FAIXA.items()}
+        self.assertEqual(quinta, {
             "I": Decimal("0.335"), "II": Decimal("0.32"), "III": Decimal("0.335"),
             "IV": Decimal("0.40"), "V": Decimal("0.235")})
 

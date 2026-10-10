@@ -16,19 +16,17 @@ from .calculo import (
     avisos_inicio_atividade,
     faixa,
     fator_r,
-    para_decimal,
     rbt12_inicio_atividade,
     valor_devido,
     valor_devido_acima_do_sublimite,
     valor_devido_inicio_atividade,
 )
-from .formato import ler_numero, porcentagem, reais
+from .formato import ler_numero, para_decimal, porcentagem, reais
 from .tabelas import (
     ANEXOS,
     ANEXOS_2027_2028,
     FATOR_R_MINIMO,
     ICMS_ISS_POR_FAIXA,
-    ICMS_ISS_QUINTA_FAIXA,
     LIMITE_RECEITA,
     SUBLIMITE_ICMS_ISS,
     TETO_ISS,
@@ -38,14 +36,13 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "0.6.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "ANEXOS",
     "ANEXOS_2027_2028",
     "FATOR_R_MINIMO",
     "ICMS_ISS_POR_FAIXA",
-    "ICMS_ISS_QUINTA_FAIXA",
     "LIMITE_RECEITA",
     "SUBLIMITE_ICMS_ISS",
     "TETO_ISS",
