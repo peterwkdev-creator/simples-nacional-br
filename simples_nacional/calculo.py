@@ -10,7 +10,8 @@ from collections.abc import Sequence
 from decimal import Decimal, ROUND_HALF_UP
 
 from .formato import CENTAVO, _contexto_fixo, para_decimal, reais
-from .tabelas import FATOR_R_MINIMO, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
+from .tabelas import (FATOR_R_MINIMO, ICMS_ISS_QUINTA_FAIXA, LIMITE_RECEITA, SUBLIMITE_ICMS_ISS,
+                      vigencia)
 
 # A partir deste ano-calendário o RBT12 é o dos 12 meses antecedentes ao mês
 # anterior ao de apuração (LC 214, art. 517, nova redação da LC 123, art. 18,
@@ -60,21 +61,54 @@ def faixa(anexo, rbt12, *, ano):
     raise AssertionError("inalcançável: a última faixa termina no limite")
 
 
+def _icms_iss_quinta_faixa(anexo, rbt12, ano):
+    """Percentual efetivo do ICMS ou do ISS com RBT12 acima do sublimite.
+
+    Res. CGSN 140, art. 21, III, b: {[(RBT12 × nominal da 5ª faixa) − PD da
+    5ª faixa] / RBT12} × repartição do ICMS/ISS da 5ª faixa. O teto de 5% do
+    ISS (alínea a) só muda a repartição: a diferença vai, "de forma
+    proporcional, aos tributos federais", e o total fica o mesmo.
+    """
+    if ano > 2026:
+        raise ValueError(
+            "icms_iss_no_das a partir de 2027 não é calculado aqui: a Res. CGSN "
+            "190/2026 (art. 21, IV, da Res. 140) leva ICMS, ISS e IBS pela 5ª faixa "
+            "com a repartição nova, com o IBS, que a biblioteca ainda não tem")
+    quinta = _anexo(anexo, ano)[4]
+    efetiva = (rbt12 * quinta.aliquota - quinta.parcela_deduzir) / rbt12
+    return efetiva * ICMS_ISS_QUINTA_FAIXA[anexo.upper()]
+
+
 @_contexto_fixo
-def aliquota_efetiva(anexo, rbt12, *, ano):
-    """(RBT12 × Aliq − PD) / RBT12, LC 123, art. 18, § 1º-A. Sem arredondar."""
+def aliquota_efetiva(anexo, rbt12, *, ano, icms_iss_no_das=False):
+    """(RBT12 × Aliq − PD) / RBT12, LC 123, art. 18, § 1º-A. Sem arredondar.
+
+    Acima do sublimite de R$ 3,6 milhões (6ª faixa) a repartição da lei dá
+    0% a ICMS e ISS: o resultado é só a parte federal. Com
+    `icms_iss_no_das=True`, até 2026, soma ICMS ou ISS pela 5ª faixa (Res.
+    CGSN 140, art. 21, III, b), o que vale enquanto a receita acumulada no
+    ano não passar do sublimite e a empresa não estiver impedida (art. 12;
+    ver avisos). Até o sublimite a opção não muda nada: ICMS e ISS já estão
+    na alíquota.
+    """
+    if not isinstance(icms_iss_no_das, bool):
+        raise TypeError(f"icms_iss_no_das: esperado bool, veio {type(icms_iss_no_das).__name__}")
     f = faixa(anexo, rbt12, ano=ano)
     rbt12 = Decimal(rbt12)
-    return (rbt12 * f.aliquota - f.parcela_deduzir) / rbt12
+    efetiva = (rbt12 * f.aliquota - f.parcela_deduzir) / rbt12
+    if icms_iss_no_das and rbt12 > SUBLIMITE_ICMS_ISS:
+        efetiva += _icms_iss_quinta_faixa(anexo, rbt12, ano)
+    return efetiva
 
 
 @_contexto_fixo
-def valor_devido(anexo, rbt12, receita_mes, *, ano):
+def valor_devido(anexo, rbt12, receita_mes, *, ano, icms_iss_no_das=False):
     """Receita do mês × alíquota efetiva (art. 18, § 3º), em centavos.
 
     Com RBT12 acima do sublimite de R$ 3,6 milhões é só a parte federal: se
     ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele depende da
-    receita acumulada no ano, que não entra aqui (ver avisos). Abaixo do
+    receita acumulada no ano (ver avisos). Até 2026, `icms_iss_no_das=True`
+    soma ICMS ou ISS pela 5ª faixa, como em aliquota_efetiva. Abaixo do
     sublimite, a partir de 2027 é o DAS cheio, com
     as parcelas de CBS e IBS; quem optar pelo regime regular desses tributos
     (LC 123, art. 13, § 9º) as paga fora e o DAS fica menor.
@@ -82,7 +116,7 @@ def valor_devido(anexo, rbt12, receita_mes, *, ano):
     receita_mes = _decimal(receita_mes, "receita_mes")
     if receita_mes < 0:
         raise ValueError("receita_mes não pode ser negativa")
-    efetiva = aliquota_efetiva(anexo, rbt12, ano=ano)
+    efetiva = aliquota_efetiva(anexo, rbt12, ano=ano, icms_iss_no_das=icms_iss_no_das)
     return (receita_mes * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 
@@ -180,18 +214,29 @@ def valor_devido_inicio_atividade(anexo, receitas, *, ano):
     return (_decimal(receitas[-1], "receitas") * efetiva).quantize(CENTAVO, ROUND_HALF_UP)
 
 
-def _aviso_sublimite(ano):
+def _aviso_sublimite(ano, icms_iss_no_das=False):
     limite = f"R$ {reais(SUBLIMITE_ICMS_ISS)}"
+    if (ano is None or ano <= 2026) and icms_iss_no_das:
+        return (
+            f"RBT12 acima do sublimite de {limite} (LC 123, art. 13-A): o valor "
+            "acima soma à parte federal ICMS ou ISS pela 5ª faixa (Res. CGSN 140, "
+            "art. 21, III, b), como pedido. Isso só vale enquanto a receita "
+            f"acumulada no ano-calendário não passar de {limite} e a empresa não "
+            "estiver impedida de recolhê-los pelo Simples (art. 12); senão, o DAS "
+            "é só a parte federal e ICMS e ISS são recolhidos fora. O mês em que a "
+            "receita do ano passa do sublimite (art. 24) não é calculado aqui.")
     if ano is None or ano <= 2026:
         return (
             f"RBT12 acima do sublimite de {limite} (LC 123, art. 13-A): o valor "
             "acima é só a parte federal (na 6ª faixa a repartição da lei dá 0% a "
-            "ICMS e ISS). O que decide se ICMS e ISS saem do DAS é a receita "
-            f"acumulada no ano-calendário (Res. CGSN 140, art. 24): se passou de "
-            f"{limite}, são recolhidos fora, pelas regras do estado e do "
-            "município; se não passou, seguem no DAS pela 5ª faixa (Res. CGSN "
-            "140, art. 21, III, b) e o DAS é maior que o valor acima. Nenhum dos "
-            "dois casos é calculado aqui (art. 3º, §§ 11 a 15).")
+            "ICMS e ISS). ICMS e ISS seguem no DAS pela 5ª faixa (Res. CGSN 140, "
+            "art. 21, III, b) enquanto a receita acumulada no ano-calendário não "
+            f"passar de {limite} e a empresa não estiver impedida de recolhê-los "
+            "pelo Simples (art. 12): aí o DAS é maior que o valor acima, e "
+            "icms_iss_no_das=True (na linha de comando, --icms-iss-no-das) o "
+            "calcula. Se passou, são recolhidos fora, pelas regras do estado e do "
+            "município; o mês em que a receita do ano passa do sublimite (art. 24) "
+            "não é calculado aqui.")
     if ano <= 2032:
         tributos, regra = "ICMS, ISS e IBS saem", "LC 214/2025, art. 517"
         fora, segue = "são recolhidos fora", "seguem"
@@ -207,12 +252,13 @@ def _aviso_sublimite(ano):
         "dois casos é calculado aqui (art. 3º, §§ 11 a 15).")
 
 
-def avisos(rbt12, *, ano=None):
+def avisos(rbt12, *, ano=None, icms_iss_no_das=False):
     """Avisos sobre os limites.
 
     O texto do sublimite muda com o ano-calendário de apuração: até 2026, ICMS e
     ISS; de 2027 a 2032, também o IBS (LC 214/2025, art. 517); de 2033 em
-    diante, só o IBS (art. 518). Sem `ano`, vale o texto até 2026.
+    diante, só o IBS (art. 518). Sem `ano`, vale o texto até 2026. Até 2026,
+    `icms_iss_no_das=True` troca o texto pelo do valor com ICMS ou ISS.
     RBT12 zero ou negativo é ValueError, como em faixa.
     """
     rbt12 = _decimal(rbt12, "rbt12")
@@ -226,7 +272,7 @@ def avisos(rbt12, *, ano=None):
             f"RBT12 acima de R$ {reais(LIMITE_RECEITA)}: fora do Simples Nacional "
             "(LC 123, art. 3º, II).")
     elif rbt12 > SUBLIMITE_ICMS_ISS:
-        saida.append(_aviso_sublimite(ano))
+        saida.append(_aviso_sublimite(ano, icms_iss_no_das))
     return saida
 
 

@@ -89,6 +89,10 @@ def main(argv=None):
                    help="com --receitas: mês do calendário em que a atividade começou, "
                         "para conferir o limite e o sublimite proporcionais do ano "
                         "(LC 123, art. 3º, §§ 2º e 11)")
+    p.add_argument("--icms-iss-no-das", action="store_true",
+                   help="até 2026, com RBT12 acima de R$ 3,6 milhões e a receita do ano "
+                        "dentro do sublimite: soma ICMS ou ISS pela 5ª faixa "
+                        "(Res. CGSN 140, art. 21, III, b)")
     p.add_argument("--folha12", type=_numero,
                    help="folha de salários dos 12 meses do RBT12 (art. 18, § 24), "
                         "obrigatória com --anexo fator-r")
@@ -104,6 +108,8 @@ def main(argv=None):
         p.error("informe --rbt12 e --receita-mes, ou --receitas no início de atividade")
     elif a.mes_inicio is not None:
         p.error("--mes-inicio só vale com --receitas")
+    if a.receitas is not None and a.icms_iss_no_das:
+        p.error("--icms-iss-no-das só vale com --rbt12")
 
     linhas = []
     anexo = a.anexo.upper()
@@ -124,13 +130,15 @@ def main(argv=None):
         if a.receitas is None:
             rbt12, receita_mes = a.rbt12, a.receita_mes
             f = faixa(anexo, rbt12, ano=a.ano)
-            efetiva = aliquota_efetiva(anexo, rbt12, ano=a.ano)
-            valor = valor_devido(anexo, rbt12, receita_mes, ano=a.ano)
+            federal = aliquota_efetiva(anexo, rbt12, ano=a.ano)
+            efetiva = aliquota_efetiva(anexo, rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)
+            valor = valor_devido(anexo, rbt12, receita_mes, ano=a.ano,
+                                 icms_iss_no_das=a.icms_iss_no_das)
         else:
             rbt12, regra = _rbt12_primeiros_meses(a.receitas, a.ano)
             receita_mes = a.receitas[-1]
             f = faixa(anexo, rbt12 or 1, ano=a.ano)  # sem RBT12: a 1ª faixa
-            efetiva = aliquota_inicio_atividade(anexo, a.receitas, ano=a.ano)
+            efetiva = federal = aliquota_inicio_atividade(anexo, a.receitas, ano=a.ano)
             valor = valor_devido_inicio_atividade(anexo, a.receitas, ano=a.ano)
             linhas.append(f"Início de atividade, {len(a.receitas)}º mês de atividade: {regra}"
                           + (f" = R$ {reais(rbt12)}" if rbt12 is not None else ""))
@@ -157,13 +165,17 @@ def main(argv=None):
         f"alíquota nominal {porcentagem(f.aliquota)}, "
         f"parcela a deduzir R$ {reais(f.parcela_deduzir)}",
         f"Alíquota efetiva: {porcentagem(efetiva)} "
-        + ("= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if rbt12 is not None
-           else "= nominal da 1ª faixa"),
+        + ("= nominal da 1ª faixa" if rbt12 is None
+           else "= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if efetiva == federal
+           else f"= {porcentagem(federal)} da 6ª faixa, só federal, + "
+                f"{porcentagem(efetiva - federal)} de ICMS ou ISS pela 5ª faixa "
+                "(Res. CGSN 140, art. 21, III, b)"),
         f"Valor do mês: R$ {reais(valor)} "
         f"= R$ {reais(receita_mes)} × {_efetiva_da_conta(efetiva, receita_mes, valor)}",
     ]
     if rbt12 is not None:
-        linhas += [f"Aviso: {texto}" for texto in avisos(rbt12, ano=a.ano)]
+        linhas += [f"Aviso: {texto}"
+                   for texto in avisos(rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)]
     if a.receitas is not None:
         linhas += [f"Aviso: {texto}" for texto in limites]
     linhas.append("Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o contador.")

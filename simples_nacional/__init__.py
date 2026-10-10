@@ -26,6 +26,7 @@ from .tabelas import (
     ANEXOS,
     ANEXOS_2027_2028,
     FATOR_R_MINIMO,
+    ICMS_ISS_QUINTA_FAIXA,
     LIMITE_RECEITA,
     SUBLIMITE_ICMS_ISS,
     Faixa,
@@ -33,12 +34,13 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "ANEXOS",
     "ANEXOS_2027_2028",
     "FATOR_R_MINIMO",
+    "ICMS_ISS_QUINTA_FAIXA",
     "LIMITE_RECEITA",
     "SUBLIMITE_ICMS_ISS",
     "Faixa",

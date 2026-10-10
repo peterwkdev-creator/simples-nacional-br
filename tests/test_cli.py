@@ -279,5 +279,32 @@ class TestCliLimiteNoInicio(unittest.TestCase):
                 self.assertIn(erro, r.stderr)
 
 
+class TestCliIcmsIss(unittest.TestCase):
+
+    def test_soma_o_icms_pela_5a_faixa(self):
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--rbt12", "4500000",
+                         "--receita-mes", "375000", "--icms-iss-no-das")
+        self.assertIn("Alíquota efetiva: 14,7406% = 10,6000% da 6ª faixa, só federal, "
+                      "+ 4,1406% de ICMS ou ISS pela 5ª faixa", texto)
+        self.assertIn("Valor do mês: R$ 55.277,25 = R$ 375.000,00 × 14,7406%", texto)
+        self.assertIn("soma à parte federal ICMS ou ISS", texto)
+
+    def test_sem_a_opcao_segue_federal_e_diz_como_pedir(self):
+        _, texto = saida("--ano", "2026", "--anexo", "I", "--rbt12", "4500000",
+                         "--receita-mes", "375000")
+        self.assertIn("Valor do mês: R$ 39.750,00", texto)
+        self.assertIn("--icms-iss-no-das", texto)
+
+    def test_erros_de_uso(self):
+        for args, erro in ((("--ano", "2027", "--rbt12", "4500000", "--receita-mes", "1",
+                             "--icms-iss-no-das"), "a partir de 2027"),
+                           (("--ano", "2026", "--receitas", "1", "--icms-iss-no-das"),
+                            "--icms-iss-no-das só vale com --rbt12")):
+            with self.subTest(args=args):
+                r = rodar("--anexo", "I", *args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn(erro, r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

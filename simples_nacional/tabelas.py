@@ -91,6 +91,17 @@ LIMITE_RECEITA = Decimal("4800000.00")
 # dá 0% a ICMS/ISS (o "-" nas tabelas de "Percentual de Repartição").
 SUBLIMITE_ICMS_ISS = Decimal("3600000.00")
 
+# Repartição do ICMS (Anexos I e II) e do ISS (III, IV e V) na 5ª faixa, da
+# tabela "Percentual de Repartição dos Tributos" de cada anexo (mesma fonte
+# do cabeçalho, conferida no HTML da Câmara em 09/10/2026): I 33,50%,
+# II 32,00%, III 33,50%, IV 40,00%, V 23,50%. Acima do sublimite, sem
+# impedimento no ano, ICMS e ISS seguem no DAS por ela (Res. CGSN 140,
+# art. 21, III, b, até 31/12/2026).
+ICMS_ISS_QUINTA_FAIXA = {
+    "I": Decimal("0.3350"), "II": Decimal("0.3200"), "III": Decimal("0.3350"),
+    "IV": Decimal("0.4000"), "V": Decimal("0.2350"),
+}
+
 # LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou
 # superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24.
 FATOR_R_MINIMO = Decimal("0.28")

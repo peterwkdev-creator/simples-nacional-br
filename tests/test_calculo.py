@@ -354,6 +354,8 @@ class TestContextoDecimalDeQuemChama(unittest.TestCase):
         contas = {
             "aliquota_efetiva": lambda: sn.aliquota_efetiva("III", "1234567.89", ano=2026),
             "valor_devido": lambda: sn.valor_devido("III", "1234567.89", "131131.58", ano=2026),
+            "valor_devido_icms_iss": lambda: sn.valor_devido(
+                "III", "4123456.78", "131131.58", ano=2026, icms_iss_no_das=True),
             "fator_r": lambda: sn.fator_r("345678.9", "1234567.89"),
             "rbt12_inicio_atividade": lambda: sn.rbt12_inicio_atividade("1000000", 7),
             "aliquota_inicio_atividade": lambda: sn.aliquota_inicio_atividade(
@@ -456,6 +458,113 @@ class TestLimiteProporcionalNoInicio(unittest.TestCase):
             avisos_inicio_atividade(["1", "-1"], 3, ano=2026)
         with self.assertRaises(TypeError):
             avisos_inicio_atividade("1000", 3, ano=2026)
+
+
+class TestIcmsIssAcimaDoSublimite(unittest.TestCase):
+    """Res. CGSN 140, art. 21, III, b (até 31/12/2026): RBT12 acima da 5ª faixa e
+    sublimite não excedido no ano, ICMS ou ISS =
+    {[(RBT12 × nominal da 5ª faixa) − PD da 5ª faixa] / RBT12} × repartição do
+    ICMS/ISS da 5ª faixa, somado à 6ª faixa, que é só federal.
+
+    Repartição da 5ª faixa (LC 123, Anexos I a V, "Percentual de Repartição"):
+    I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%.
+    """
+
+    def efetiva(self, anexo, rbt12, ano=2026):
+        from simples_nacional import aliquota_efetiva
+        return aliquota_efetiva(anexo, rbt12, ano=ano, icms_iss_no_das=True)
+
+    def test_conta_a_mao_nos_cinco_anexos(self):
+        casos = {
+            # 6ª: (4.500.000 × 19% − 378.000) / 4.500.000 = 0,106
+            # 5ª: (4.500.000 × 14,3% − 87.300) / 4.500.000 = 0,1236; × 33,5% = 0,041406
+            ("I", 4_500_000): Decimal("0.106") + Decimal("0.1236") * Decimal("0.335"),
+            # 6ª: (4.000.000 × 30% − 720.000) / 4.000.000 = 0,12
+            # 5ª: (4.000.000 × 14,7% − 85.500) / 4.000.000 = 0,125625; × 32% = 0,0402
+            ("II", 4_000_000): Decimal("0.12") + Decimal("0.125625") * Decimal("0.32"),
+            # 6ª: (4.000.000 × 33% − 648.000) / 4.000.000 = 0,168
+            # 5ª: (4.000.000 × 21% − 125.640) / 4.000.000 = 0,17859; × 33,5% = 0,05982765
+            # (ISS acima de 5%: o teto da alínea a passa a diferença aos federais,
+            # o total fica o mesmo)
+            ("III", 4_000_000): Decimal("0.168") + Decimal("0.17859") * Decimal("0.335"),
+            # 6ª: (4.800.000 × 33% − 828.000) / 4.800.000 = 0,1575
+            # 5ª: (4.800.000 × 22% − 183.780) / 4.800.000 = 0,1817125; × 40% = 0,072685
+            ("IV", 4_800_000): Decimal("0.1575") + Decimal("0.1817125") * Decimal("0.40"),
+            # 6ª: (4.000.000 × 30,5% − 540.000) / 4.000.000 = 0,17
+            # 5ª: (4.000.000 × 23% − 62.100) / 4.000.000 = 0,214475; × 23,5% = 0,050401625
+            ("V", 4_000_000): Decimal("0.17") + Decimal("0.214475") * Decimal("0.235"),
+        }
+        for (anexo, rbt12), esperado in casos.items():
+            with self.subTest(anexo=anexo):
+                self.assertEqual(self.efetiva(anexo, rbt12), esperado)
+        self.assertEqual(casos[("I", 4_500_000)], Decimal("0.147406"))
+
+    def test_valor_do_mes(self):
+        # 375.000 × 14,7406% = 55.277,25; só federal, 375.000 × 10,6% = 39.750,00
+        self.assertEqual(valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=True),
+                         Decimal("55277.25"))
+        self.assertEqual(valor_devido("I", 4_500_000, "375000", ano=2026), Decimal("39750.00"))
+        self.assertEqual(valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=False),
+                         Decimal("39750.00"))
+
+    def test_ate_o_sublimite_nao_muda_nada(self):
+        from simples_nacional import aliquota_efetiva
+        for anexo in ("I", "II", "III", "IV", "V"):
+            for rbt12 in ("1000000", "3600000.00"):
+                with self.subTest(anexo=anexo, rbt12=rbt12):
+                    self.assertEqual(self.efetiva(anexo, rbt12),
+                                     aliquota_efetiva(anexo, rbt12, ano=2026))
+        # um centavo acima do sublimite já soma o ICMS: 5ª faixa em 3.600.000
+        # dá (3.600.000 × 14,3% − 87.300) / 3.600.000 = 427.500 / 3.600.000 =
+        # 0,11875; × 33,5% = 0,03978125
+        acima = Decimal("3600000.01")
+        quinta = (acima * Decimal("0.143") - 87_300) / acima * Decimal("0.335")
+        self.assertEqual(self.efetiva("I", acima),
+                         aliquota_efetiva("I", acima, ano=2026) + quinta)
+        self.assertEqual(round(quinta, 8), Decimal("0.03978125"))
+
+    def test_anos_de_2018_a_2026(self):
+        for ano in (2018, 2026):
+            with self.subTest(ano=ano):
+                self.assertEqual(self.efetiva("I", 4_500_000, ano=ano), Decimal("0.147406"))
+
+    def test_a_partir_de_2027_nao_calcula(self):
+        for ano in (2027, 2029, 2033):
+            with self.subTest(ano=ano):
+                with self.assertRaisesRegex(ValueError, "Res. CGSN 190/2026"):
+                    self.efetiva("I", 4_500_000, ano=ano)
+                with self.assertRaisesRegex(ValueError, "a partir de 2027"):
+                    valor_devido("I", 4_500_000, "1000", ano=ano, icms_iss_no_das=True)
+        # até o sublimite a opção não muda nada, também em 2027
+        from simples_nacional import aliquota_efetiva
+        self.assertEqual(self.efetiva("I", 3_000_000, ano=2027),
+                         aliquota_efetiva("I", 3_000_000, ano=2027))
+
+    def test_opcao_so_aceita_bool(self):
+        from simples_nacional import aliquota_efetiva
+        for valor in ("sim", 1, None):
+            with self.subTest(valor=valor):
+                with self.assertRaisesRegex(TypeError, "icms_iss_no_das"):
+                    aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=valor)
+
+    def test_reparticao_da_tabela(self):
+        from simples_nacional import ICMS_ISS_QUINTA_FAIXA
+        self.assertEqual(ICMS_ISS_QUINTA_FAIXA, {
+            "I": Decimal("0.335"), "II": Decimal("0.32"), "III": Decimal("0.335"),
+            "IV": Decimal("0.40"), "V": Decimal("0.235")})
+
+    def test_aviso_com_a_opcao(self):
+        texto = " ".join(avisos(4_500_000, ano=2026, icms_iss_no_das=True))
+        self.assertIn("soma à parte federal ICMS ou ISS pela 5ª faixa", texto)
+        self.assertIn("art. 12", texto)
+        self.assertIn("art. 24", texto)
+        self.assertNotIn("--icms-iss-no-das", texto)
+        texto = " ".join(avisos(4_500_000, ano=2026))
+        self.assertIn("icms_iss_no_das=True (na linha de comando, --icms-iss-no-das)", texto)
+        self.assertIn("art. 12", texto)
+        # a partir de 2027 a opção não troca o texto
+        self.assertEqual(avisos(4_500_000, ano=2027, icms_iss_no_das=True),
+                         avisos(4_500_000, ano=2027))
 
 
 if __name__ == "__main__":

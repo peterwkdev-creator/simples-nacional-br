@@ -56,6 +56,7 @@ R$ 477.000,00. É o erro relatado em
 | Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
 | Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
 | Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
+| Até 2026, RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): ICMS ou ISS pela 5ª faixa do anexo (efetiva da 5ª × repartição do ICMS/ISS nela: I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%), somado à 6ª faixa, que é só federal | Res. CGSN 140/2018, art. 21, III, b; repartição dos Anexos I a V |
 | Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
 | Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
 | Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
@@ -74,9 +75,11 @@ aqui.
 Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
 sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
 início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
-têm limite próprio (art. 3º, § 14), o ICMS e o ISS que seguem no DAS com RBT12 acima de R$ 3,6
-milhões e receita do ano abaixo dele (Res. CGSN 140, art. 21, III, b), a empresa aberta no ano anterior ao da opção (Res. CGSN 140,
-art. 22, § 4º) e o MEI.
+têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
+sublimite (Res. CGSN 140, art. 24), o ICMS, o ISS e o IBS pela 5ª faixa a
+partir de 2027 (Res. CGSN 190/2026: a repartição nova ainda não está aqui;
+com `icms_iss_no_das=True` dá erro), a empresa aberta no ano anterior ao da
+opção (Res. CGSN 140, art. 22, § 4º) e o MEI.
 
 ## Como é testado
 
@@ -121,9 +124,21 @@ valor_devido("I", 4_500_000, "375000", ano=2026) # Decimal('39750.00')
 anexo_por_fator_r(280_000, 1_000_000)           # 'III'
 avisos(4_500_000, ano=2026)                     # ['RBT12 acima do sublimite ...']
 
+# até 2026, acima do sublimite com a receita do ano dentro dele (desde a 0.5.0):
+# 6ª faixa só federal (10,6%) + ICMS pela 5ª faixa (12,36% × 33,5% = 4,1406%)
+aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=True)       # Decimal('0.14740600')
+valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=True) # Decimal('55277.25')
+
 # início de atividade: receita de cada mês, do 1º até o de apuração
 valor_devido_inicio_atividade("I", [30_000, 50_000], ano=2026)  # Decimal('2825.00')
 valor_devido_inicio_atividade("I", [400_000], ano=2027)         # Decimal('16000.00'), 1ª faixa
+```
+
+Na linha de comando, o ICMS ou o ISS pela 5ª faixa vem com
+`--icms-iss-no-das`, e a saída mostra as duas parcelas da efetiva:
+
+```bash
+python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000 --icms-iss-no-das
 ```
 
 Na linha de comando, o início de atividade vai em `--receitas`, separadas
