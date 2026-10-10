@@ -1,4 +1,5 @@
-"""Os exemplos em Python do README rodam como estão, cada bloco sozinho."""
+"""Os exemplos em Python do README rodam como estão, cada bloco sozinho, e a
+instalação aponta para a tag da versão atual."""
 
 import re
 import unittest
@@ -16,6 +17,12 @@ class TestExemplosDoReadme(unittest.TestCase):
             # a linha que mostra um erro ("ambíguo: ValueError") fica no comentário
             with self.subTest(bloco=i):
                 exec(compile(bloco, f"README, bloco {i}", "exec"), {})
+
+    def test_instalar_pela_tag_da_versao_atual(self):
+        # a 1.1.0 e a 1.2.0 saíram com o README ainda em @v1.0.0
+        from simples_nacional import __version__
+        tags = re.findall(r"simples-nacional-br@v([\d.]+)", README.read_text(encoding="utf-8"))
+        self.assertEqual(tags, [__version__])
 
 
 if __name__ == "__main__":
