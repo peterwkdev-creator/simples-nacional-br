@@ -1,0 +1,38 @@
+name: Valor diferente do esperado
+description: A biblioteca deu um valor diferente do PGDAS-D, da sua conta ou da lei, ou falta um caso.
+title: "Valor diferente: Anexo ?, ano ?"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use números inventados ou arredondados: nada de CNPJ, nome ou dado real de empresa.
+        O resultado da biblioteca é estimativa e não substitui o PGDAS-D nem o contador.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão
+      description: "Saída de `python -m simples_nacional --version`."
+      placeholder: simples-nacional 0.6.0
+    validations:
+      required: true
+  - type: textarea
+    id: entrada
+    attributes:
+      label: O que você calculou
+      description: Anexo, ano de apuração, RBT12, receita do mês e, se for o caso, folha dos 12 meses ou receita do ano. O comando ou a chamada em Python ajuda.
+      placeholder: python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: O que a biblioteca deu
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava, e de onde vem
+      description: PGDAS-D, conta à mão, artigo da lei ou da resolução.
+    validations:
+      required: true

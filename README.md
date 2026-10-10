@@ -15,6 +15,18 @@ Nenhum número sai do seu computador. Na primeira visita o navegador baixa
 cerca de 6 MB (o Python do Pyodide; a biblioteca são 20 KB); depois, cada
 conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 
+> **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
+> contador. Todos os exemplos usam números inventados.
+
+## Instalar
+
+```bash
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v0.6.0"
+```
+
+Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
+instalar: do checkout limpo, os dois comandos abaixo rodam como estão.
+
 ```bash
 python -m unittest
 ```
@@ -23,12 +35,26 @@ python -m unittest
 python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000
 ```
 
-Os dois rodam do checkout limpo, sem instalar nada. Testado a cada push com Python 3.9 a 3.13 (Linux) e
-3.13 (Windows).
+Testado a cada push com Python 3.9 a 3.13 (Linux) e 3.13 (Windows).
 Sem `--ano`, a linha de comando usa o ano corrente e diz qual tabela usou.
 
-> **É estimativa, não consultoria tributária.** Não substitui o PGDAS-D nem o
-> contador. Todos os exemplos usam números inventados.
+## Uso
+
+```python
+from simples_nacional import aliquota_efetiva, anexo_por_fator_r, avisos, valor_devido
+
+aliquota_efetiva("I", 4_500_000, ano=2026)       # Decimal('0.106')
+valor_devido("I", 4_500_000, "375000", ano=2026) # Decimal('39750.00')
+anexo_por_fator_r(280_000, 1_000_000)            # 'III'
+avisos(4_500_000, ano=2026)                      # ['RBT12 acima do sublimite ...']
+```
+
+`ano` é o ano-calendário do **mês de apuração**, não o de hoje: o DAS de
+dezembro de 2026, calculado em janeiro de 2027, usa a tabela de 2026.
+Valores em `Decimal`, `int` ou `str`; `float` é recusado, porque erra
+centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um
+`ValueError`). Sublimite, início de atividade e a leitura de números no
+formato brasileiro estão em [Mais exemplos](#mais-exemplos).
 
 ## Por quê
 
@@ -56,48 +82,21 @@ R$ 477.000,00. É o erro relatado em
 
 ## O que cobre
 
-| | Fonte (LC 123/2006, redação da LC 155/2016) |
-|---|---|
-| Anexos I a V, seis faixas cada: teto, alíquota nominal, parcela a deduzir | Anexos I a V |
-| Alíquota efetiva | art. 18, § 1º-A |
-| Valor do mês: receita do mês × alíquota efetiva | art. 18, § 3º |
-| Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
-| Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
-| Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
-| RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): efetiva da 5ª faixa × repartição dela, somada à 6ª faixa, que é só federal. Até 2026, ICMS ou ISS (I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%); de 2027 a 2032, ICMS ou ISS e IBS, pela tabela de cada período; de 2033 em diante, só o IBS | Res. CGSN 140/2018, art. 21, III, b, e IV (redação da Res. CGSN 190/2026); repartição dos Anexos I a V da LC 123 e XVIII a XXII da LC 214 |
-| Até 2026, o mês em que a receita do ano passa do sublimite (`valor_devido_acima_do_sublimite`): a parcela dentro dele pela efetiva com ICMS ou ISS; a de cima, federais pela faixa do RBT12 mais ICMS ou ISS pela 5ª faixa em R$ 3,6 milhões; a que passa de R$ 4,8 milhões, federais da 6ª faixa em R$ 4,8 milhões mais o mesmo ICMS ou ISS. Avisa quando o impedimento e a exclusão valem (mês seguinte, se o excesso passa de 20%; senão, ano seguinte) | Res. CGSN 140/2018, arts. 12 e 24; LC 123, art. 3º, §§ 9º e 9º-A, e art. 20, §§ 1º e 1º-A |
-| Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
-| Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
-| Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
+- Anexos I a V, seis faixas cada (teto, alíquota nominal, parcela a
+  deduzir), com a alíquota efetiva e o valor do mês.
+- Fator R: folha de 12 meses ÷ RBT12; 28% ou mais vai para o Anexo III,
+  senão para o V.
+- Teto de R$ 4,8 milhões: erro explicado, nunca número.
+- Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal;
+  a pedido, o ICMS ou ISS (e o IBS, desde 2027) pela 5ª faixa; até 2026, o
+  mês em que a receita do ano passa do sublimite.
+- Início de atividade, mês a mês, e o limite proporcional no ano de início.
+- Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1
+  ponto menor; a partir de 2029 volta a de hoje.
 
-Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
-([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
-a fonte fica ao lado da tabela em `simples_nacional/tabelas.py`. A tabela de
-2027 e 2028 foi lida no mesmo dia no
-[texto atualizado da LC 214/2025](https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.html);
-a repartição da 5ª faixa de 2027 em diante, no
-[texto compilado do Planalto](https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm),
-salvo em 09/10/2026 e conferido em 10/10/2026.
-
-No mês em que a receita do ano passa do sublimite, nos Anexos III e IV, a
-parte federal da faixa do RBT12 é a efetiva menos o ISS limitado a 5%: a
-diferença acima de 5% fica com os federais (Res. CGSN 140, art. 21, III, a).
-É a leitura da biblioteca; o ISS pela 5ª faixa em R$ 3,6 milhões entra
-inteiro, porque o teto ali só muda a repartição, não o total.
-
-A partir de 2027, o valor do mês é o DAS cheio, já com as parcelas de CBS e
-IBS. Quem optar por pagar esses dois tributos pelo regime regular (LC 123,
-art. 13, § 9º) os recolhe fora, e o DAS fica menor: esse cálculo não está
-aqui.
-
-Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
-sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
-início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
-têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
-sublimite a partir de 2027 (Res. CGSN 140, art. 24, com o IBS: dá erro) e,
-nele, o ano de início de atividade (§ 1º) e a exportação em separado (§ 8º),
-a empresa aberta no ano anterior ao da opção (Res. CGSN 140, art. 22, § 4º)
-e o MEI.
+Fora do escopo, entre outros: enquadramento CNAE → anexo, repartição do
+valor por tributo, sublimites estaduais, exportação e MEI. A lista completa
+e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
 
 ## Como é testado
 
@@ -118,14 +117,7 @@ e o MEI.
   cinco nominais de 2027, um dos 85 percentuais de repartição, uma fronteira
   de ano ou uma regra do início de atividade, um de cada vez, derruba pelo
   menos um teste.
-
-As regras do início de atividade foram lidas em 09/10/2026 no portal de
-normas da Receita:
-[Res. CGSN 140/2018](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/92278)
-e [Res. CGSN 190/2026](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/152832).
-Média zero no início de atividade (nenhuma venda ainda) dá a alíquota da
-1ª faixa: a fórmula não se define com RBT12 zero, e essa é uma convenção da
-biblioteca.
+- Os exemplos em Python deste README rodam como estão, num teste.
 
 Arredondamento: a lei não fixa regra. A alíquota efetiva guarda todos os
 dígitos; o valor do mês é arredondado em centavos com `ROUND_HALF_UP`. As
@@ -135,29 +127,24 @@ resultado. Na linha de comando, a efetiva da linha "Valor do mês" sai com
 as casas (4 ou mais) que fecham a conta no centavo, e o Fator R é cortado,
 não arredondado, na 4ª casa: 27,99999% aparece 27,9999%, ao lado do Anexo V.
 
-## Como biblioteca
+## Mais exemplos
 
 ```python
-from simples_nacional import (aliquota_efetiva, anexo_por_fator_r, avisos, valor_devido,
+from simples_nacional import (aliquota_efetiva, valor_devido, valor_devido_acima_do_sublimite,
                               valor_devido_inicio_atividade)
 
-aliquota_efetiva("I", 4_500_000, ano=2026)      # Decimal('0.106')
-aliquota_efetiva("I", 4_500_000, ano=2027)      # Decimal('0.105')
-valor_devido("I", 4_500_000, "375000", ano=2026) # Decimal('39750.00')
-anexo_por_fator_r(280_000, 1_000_000)           # 'III'
-avisos(4_500_000, ano=2026)                     # ['RBT12 acima do sublimite ...']
+aliquota_efetiva("I", 4_500_000, ano=2027)      # Decimal('0.105'): 6ª faixa de 2027
 
-# até 2026, acima do sublimite com a receita do ano dentro dele (desde a 0.5.0):
+# acima do sublimite com a receita do ano dentro dele, até 2026:
 # 6ª faixa só federal (10,6%) + ICMS pela 5ª faixa (12,36% × 33,5% = 4,1406%)
 aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=True)       # Decimal('0.14740600')
 valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=True) # Decimal('55277.25')
 
-# de 2027 em diante, também o IBS (desde a 0.6.0): 10,5% + 12,36% × (33,50% + 0,17%)
+# de 2027 em diante, também o IBS: 10,5% + 12,36% × (33,50% + 0,17%)
 aliquota_efetiva("I", 4_500_000, ano=2027, icms_iss_no_das=True)       # Decimal('0.14661612')
 
 # até 2026, o mês em que a receita do ano (3.400.000 antes dele) passa do sublimite:
 # 200.000 dentro, pela efetiva com ISS, e 300.000 acima, federais + ISS em 3.600.000
-from simples_nacional import valor_devido_acima_do_sublimite
 valor_devido_acima_do_sublimite("III", 4_000_000, 500_000, 3_400_000, ano=2026)  # Decimal('113563.08')
 
 # início de atividade: receita de cada mês, do 1º até o de apuração
@@ -190,7 +177,7 @@ Com `--mes-inicio` (o mês do calendário em que a atividade começou, de 1 a
 12), a saída confere a receita do ano de início contra o limite e o
 sublimite proporcionais; sem ele, avisa quando a receita passa de
 R$ 300.000,00 por mês e pede o mês. Na API, o mesmo vem de
-`avisos_inicio_atividade(receitas, mes_inicio, ano=...)`, desde a 0.4.0:
+`avisos_inicio_atividade(receitas, mes_inicio, ano=...)`:
 
 ```python
 from simples_nacional import avisos_inicio_atividade
@@ -208,8 +195,8 @@ frente e espaço nas pontas, como o Excel copia a célula (`R$ 1.000,50`). O
 que é ambíguo, como `1,000.50` ou `100 000`, dá erro em vez de virar outro
 número. `--version` mostra a versão instalada.
 
-A mesma leitura e a saída no formato brasileiro são públicas desde a 0.3.1,
-para quem integra a biblioteca num sistema:
+A mesma leitura e a saída no formato brasileiro são públicas, para quem
+integra a biblioteca num sistema:
 
 ```python
 from decimal import Decimal
@@ -222,15 +209,81 @@ porcentagem(Decimal("0.0565"))        # '5,6500%'
 reais(Decimal("4800000"))             # '4.800.000,00'
 ```
 
-Na API, valores em `Decimal`, `int` ou `str` (o texto com ponto decimal,
-como no `Decimal`: `"360.000"` é 360); `float` é recusado, porque erra
-centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um
-`ValueError`).
+Na API, o texto vai com ponto decimal, como no `Decimal`: `"360.000"` é
+360. Para o formato brasileiro, passe antes por `ler_numero`.
 
-`ano` é o ano-calendário do **mês de apuração**, não o de hoje: o DAS de
-dezembro de 2026, calculado em janeiro de 2027, usa a tabela de 2026. Por
-isso ele é obrigatório desde a 0.2.0: quem vinha da 0.1.0 acrescenta
-`ano=` às chamadas de `faixa`, `aliquota_efetiva` e `valor_devido`.
+## Fontes e limites
+
+| | Fonte (LC 123/2006, redação da LC 155/2016) |
+|---|---|
+| Anexos I a V, seis faixas cada: teto, alíquota nominal, parcela a deduzir | Anexos I a V |
+| Alíquota efetiva | art. 18, § 1º-A |
+| Valor do mês: receita do mês × alíquota efetiva | art. 18, § 3º |
+| Fator R: folha de 12 meses ÷ RBT12; 28% ou mais → Anexo III, senão V | art. 18, §§ 5º-J, 5º-K, 5º-M e 24 |
+| Teto de R$ 4,8 milhões: erro explicado, nunca número | art. 3º, II |
+| Sublimite de R$ 3,6 milhões: aviso de que o valor é só a parte federal e de que ICMS e ISS (e o IBS, desde 2027) saem do DAS ou seguem nele conforme a receita acumulada no ano | art. 13-A; Res. CGSN 140/2018, arts. 21, III, b, e 24; LC 214/2025, arts. 517 e 518 |
+| RBT12 acima de R$ 3,6 milhões e receita do ano dentro do sublimite, a pedido (`icms_iss_no_das=True`): efetiva da 5ª faixa × repartição dela, somada à 6ª faixa, que é só federal. Até 2026, ICMS ou ISS (I 33,50%, II 32,00%, III 33,50%, IV 40,00%, V 23,50%); de 2027 a 2032, ICMS ou ISS e IBS, pela tabela de cada período; de 2033 em diante, só o IBS | Res. CGSN 140/2018, art. 21, III, b, e IV (redação da Res. CGSN 190/2026); repartição dos Anexos I a V da LC 123 e XVIII a XXII da LC 214 |
+| Até 2026, o mês em que a receita do ano passa do sublimite (`valor_devido_acima_do_sublimite`): a parcela dentro dele pela efetiva com ICMS ou ISS; a de cima, federais pela faixa do RBT12 mais ICMS ou ISS pela 5ª faixa em R$ 3,6 milhões; a que passa de R$ 4,8 milhões, federais da 6ª faixa em R$ 4,8 milhões mais o mesmo ICMS ou ISS. Avisa quando o impedimento e a exclusão valem (mês seguinte, se o excesso passa de 20%; senão, ano seguinte) | Res. CGSN 140/2018, arts. 12 e 24; LC 123, art. 3º, §§ 9º e 9º-A, e art. 20, §§ 1º e 1º-A |
+| Início de atividade, mês a mês: até 2026, 1º mês com a receita do próprio mês × 12 e do 2º ao 12º com a média dos anteriores × 12; a partir de 2027, 1º e 2º mês na 1ª faixa e do 3º ao 13º com a média dos meses antes do mês anterior × 12 | art. 18, § 2º; Res. CGSN 140/2018, art. 22, e Res. CGSN 190/2026 |
+| Ano de início de atividade: limite de R$ 400.000,00 e sublimite de R$ 300.000,00 vezes os meses do início a dezembro (fração conta como mês), com aviso de exclusão desde o início, se o excesso passa de 20%, ou a partir do ano seguinte | art. 3º, §§ 2º e 10 a 13; art. 31, III; Res. CGSN 140/2018, arts. 3º e 9º, § 2º |
+| Tabela do ano de apuração: em 2027 e 2028 a 6ª faixa tem nominal 0,1 ponto menor; a partir de 2029 volta a de hoje | LC 214/2025, art. 519 e Anexos XVIII a XXII |
+
+Cada valor de tabela foi lido no site da Câmara dos Deputados em 09/10/2026
+([LC 155/2016, texto atualizado](https://www2.camara.leg.br/legin/fed/leicom/2016/leicomplementar-155-27-outubro-2016-783850-normaatualizada-pl.html));
+a fonte fica ao lado da tabela em `simples_nacional/tabelas.py`. A tabela de
+2027 e 2028 foi lida no mesmo dia no
+[texto atualizado da LC 214/2025](https://www2.camara.leg.br/legin/fed/leicom/2025/leicomplementar-214-16-janeiro-2025-796905-normaatualizada-pl.html);
+a repartição da 5ª faixa de 2027 em diante, no
+[texto compilado do Planalto](https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214.htm),
+salvo em 09/10/2026 e conferido em 10/10/2026.
+
+As regras do início de atividade foram lidas em 09/10/2026 no portal de
+normas da Receita:
+[Res. CGSN 140/2018](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/92278)
+e [Res. CGSN 190/2026](https://normasinternet2.receita.fazenda.gov.br/#/consulta/externa/152832).
+Média zero no início de atividade (nenhuma venda ainda) dá a alíquota da
+1ª faixa: a fórmula não se define com RBT12 zero, e essa é uma convenção da
+biblioteca.
+
+No mês em que a receita do ano passa do sublimite, nos Anexos III e IV, a
+parte federal da faixa do RBT12 é a efetiva menos o ISS limitado a 5%: a
+diferença acima de 5% fica com os federais (Res. CGSN 140, art. 21, III, a).
+É a leitura da biblioteca; o ISS pela 5ª faixa em R$ 3,6 milhões entra
+inteiro, porque o teto ali só muda a repartição, não o total.
+
+A partir de 2027, o valor do mês é o DAS cheio, já com as parcelas de CBS e
+IBS. Quem optar por pagar esses dois tributos pelo regime regular (LC 123,
+art. 13, § 9º) os recolhe fora, e o DAS fica menor: esse cálculo não está
+aqui.
+
+Fora do escopo: enquadramento CNAE → anexo, repartição do valor por tributo,
+sublimites estaduais, o ano em que o sublimite é ultrapassado depois do de
+início de atividade (art. 3º, §§ 11 a 15), as receitas de exportação, que
+têm limite próprio (art. 3º, § 14), o mês em que a receita do ano passa do
+sublimite a partir de 2027 (Res. CGSN 140, art. 24, com o IBS: dá erro) e,
+nele, o ano de início de atividade (§ 1º) e a exportação em separado (§ 8º),
+a empresa aberta no ano anterior ao da opção (Res. CGSN 140, art. 22, § 4º)
+e o MEI.
+
+## O que há em cada pasta
+
+- `simples_nacional/`: a biblioteca. `tabelas.py` tem os valores da lei,
+  cada um com a fonte; `calculo.py`, as contas; `formato.py`, a leitura e a
+  escrita de números no formato brasileiro; `__main__.py`, a linha de
+  comando.
+- `tests/`: os testes, inclusive o que roda os exemplos deste README.
+- `vitrine/`: a página do "Experimente no navegador". O GitHub Actions a
+  monta e publica a cada push que muda a biblioteca, a página ou os testes
+  (`.github/workflows/pages.yml`).
+- `docs/`: o GIF do começo deste README.
+- [`CHANGELOG.md`](CHANGELOG.md): o que mudou em cada versão.
+
+## Contribuir
+
+Achou um valor diferente do PGDAS-D ou da sua conta, ou um caso de borda
+que falta? [Abra uma issue](https://github.com/peterwkdev-creator/simples-nacional-br/issues/new/choose)
+pelo modelo "Valor diferente do esperado", com números inventados. Para
+mandar código, veja o [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licença
 
