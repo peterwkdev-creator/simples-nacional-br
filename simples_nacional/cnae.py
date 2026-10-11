@@ -164,7 +164,9 @@ def _numero(texto):
 
 def main(argv=None):
     p = argparse.ArgumentParser(
-        prog="python -m simples_nacional.cnae",
+        # pelo pip, o nome do comando; por python -m, argv[0] é o caminho do .py
+        prog=("simples-nacional-cnae" if Path(sys.argv[0]).stem == "simples-nacional-cnae"
+              else "python -m simples_nacional.cnae"),
         description="Situação de subclasses da CNAE no Simples Nacional (Res. CGSN 140, "
                     "Anexos VI e VII, e LC 123, art. 18).")
     p.add_argument("cnae", nargs="+", help="subclasse com 7 dígitos (6920-6/01 ou 6920601)")

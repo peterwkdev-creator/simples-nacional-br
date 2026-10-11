@@ -12,6 +12,8 @@ python -m venv "$venv"
 "$venv/bin/pip" install --quiet dist/*.whl
 cd "$RUNNER_TEMP"
 "$venv/bin/simples-nacional" --version
+"$venv/bin/simples-nacional" --help | grep -F "usage: simples-nacional "
+"$venv/bin/simples-nacional-cnae" --help | grep -F "usage: simples-nacional-cnae "
 "$venv/bin/simples-nacional" --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000 \
   | grep -F "Valor do mês: R\$ 39.750,00"
 "$venv/bin/simples-nacional-cnae" 6920-6/01 --ano 2027 | grep -F "ATIVIDADES DE CONTABILIDADE"

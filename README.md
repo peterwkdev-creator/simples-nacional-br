@@ -7,7 +7,7 @@ faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
 (redação da LC 155/2016) e, de 2027 em diante, da LC 214/2025. Python puro,
 só a biblioteca padrão, `Decimal` do começo ao fim.
 
-![A página calcula o exemplo do Anexo III e depois o mesmo mês pelo Fator R](docs/vitrine.gif)
+![A página calcula o exemplo do Anexo III e depois o mesmo mês pelo Fator R](https://raw.githubusercontent.com/peterwkdev-creator/simples-nacional-br/main/docs/vitrine.gif)
 
 **[Experimente no navegador](https://peterwkdev-creator.github.io/simples-nacional-br/)**:
 a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
@@ -26,28 +26,41 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 pip install simples-nacional-br
 ```
 
-Ou direto da tag no GitHub:
+Python 3.9 ou mais novo, sem nenhuma outra dependência. Testado a cada
+push com Python 3.9 a 3.14 (Linux) e 3.13 (Windows).
+
+A instalação traz três comandos:
+
+| Comando | Para quê |
+|---|---|
+| `simples-nacional` | o DAS do mês: alíquota efetiva, valor e avisos |
+| `simples-nacional-cnae` | o anexo de uma atividade (CNAE), com o fundamento na lei |
+| `simples-nacional-mcp` | o servidor MCP, para o Claude e outros assistentes ("Servidor MCP", abaixo) |
+
+Primeira conta: empresa do Anexo III com R$ 600 mil de receita nos últimos
+12 meses (o RBT12) e R$ 50 mil no mês.
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.0"
+simples-nacional --ano 2026 --anexo III --rbt12 600000 --receita-mes 50000
 ```
 
-Sem dependência; Python 3.9 ou mais novo. A instalação traz três
-comandos: `simples-nacional` (o mesmo que `python -m simples_nacional`),
-`simples-nacional-cnae` e `simples-nacional-mcp`. Para só experimentar, nem
-precisa instalar: do checkout limpo, os dois comandos abaixo rodam como
-estão.
-
-```bash
-python -m unittest
+```text
+Tabela do ano-calendário 2026: LC 123/2006, Anexos I a V, redação da LC 155/2016 (para outro ano de apuração, use --ano)
+Anexo III, 3ª faixa (até R$ 720.000,00): alíquota nominal 13,5000%, parcela a deduzir R$ 17.640,00
+Alíquota efetiva: 10,5600% = (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)
+Valor do mês: R$ 5.280,00 = R$ 50.000,00 × 10,5600%
+Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o contador.
 ```
 
-```bash
-python -m simples_nacional --ano 2026 --anexo I --rbt12 4500000 --receita-mes 375000
-```
+`simples-nacional --help` mostra todas as opções. Sem `--ano`, vale o ano
+corrente, e a primeira linha diz qual tabela foi usada.
 
-Testado a cada push com Python 3.9 a 3.14 (Linux) e 3.13 (Windows).
-Sem `--ano`, a linha de comando usa o ano corrente e diz qual tabela usou.
+Outras formas:
+
+- direto da tag no GitHub:
+  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.1"`;
+- sem instalar, do código-fonte (`git clone`): `python -m unittest` roda
+  os testes, e `python -m simples_nacional` faz a mesma conta.
 
 ## Uso
 
@@ -65,7 +78,7 @@ dezembro de 2026, calculado em janeiro de 2027, usa a tabela de 2026.
 Valores em `Decimal`, `int` ou `str`; `float` é recusado, porque erra
 centavo. RBT12 acima de R$ 4,8 milhões levanta `LimiteExcedido` (um
 `ValueError`). Sublimite, início de atividade e a leitura de números no
-formato brasileiro estão em [Mais exemplos](#mais-exemplos).
+formato brasileiro estão em "Mais exemplos", abaixo.
 
 ## Por quê
 
@@ -116,7 +129,7 @@ R$ 477.000,00. É o erro relatado em
   contas: valor do mês, repartição, Fator R e CNAE.
 
 Fora do escopo, entre outros: sublimites estaduais, exportação e MEI. A
-lista completa e a fonte legal de cada regra estão em [Fontes e limites](#fontes-e-limites).
+lista completa e a fonte legal de cada regra estão em "Fontes e limites", abaixo.
 
 ## Como é testado
 
@@ -332,22 +345,22 @@ python -m simples_nacional.cnae 6920-6/01 1091102 --ano 2027
 As mesmas contas como servidor [MCP](https://modelcontextprotocol.io)
 (Model Context Protocol), para o Claude e outros assistentes chamarem. Roda
 no seu computador, pela entrada e saída padrão, só com a biblioteca padrão;
-nenhum número sai dali. Depois do `pip install` acima:
+nenhum número sai dali. Três jeitos de ligar, do mais simples ao mais
+manual:
+
+**1. Claude Desktop, sem terminal.** Baixe o arquivo
+`simples-nacional-br-<versão>.mcpb` da
+[última Release](https://github.com/peterwkdev-creator/simples-nacional-br/releases/latest)
+e abra-o no Claude Desktop, que o instala como extensão. Precisa de Python
+3.9 ou mais novo no computador. O mesmo pacote está no
+[catálogo oficial de servidores MCP](https://registry.modelcontextprotocol.io)
+como `io.github.peterwkdev-creator/simples-nacional-br`.
+
+**2. Com o [uv](https://docs.astral.sh/uv/), sem instalar antes.** No
+Claude Code:
 
 ```bash
-python -m simples_nacional.mcp
-```
-
-Com o [uv](https://docs.astral.sh/uv/), sem instalar antes:
-
-```bash
-uvx --from simples-nacional-br simples-nacional-mcp
-```
-
-No Claude Code:
-
-```bash
-claude mcp add --transport stdio simples-nacional -- python -m simples_nacional.mcp
+claude mcp add --transport stdio simples-nacional -- uvx --from simples-nacional-br simples-nacional-mcp
 ```
 
 No Claude Desktop, em `claude_desktop_config.json`:
@@ -356,23 +369,24 @@ No Claude Desktop, em `claude_desktop_config.json`:
 {
   "mcpServers": {
     "simples-nacional": {
-      "command": "python",
-      "args": ["-m", "simples_nacional.mcp"]
+      "command": "uvx",
+      "args": ["--from", "simples-nacional-br", "simples-nacional-mcp"]
     }
   }
 }
 ```
 
-`python` tem de ser o Python em que a biblioteca foi instalada; se o
-aplicativo não o acha, ponha o caminho completo, que
-`python -c "import sys; print(sys.executable)"` mostra.
+**3. Depois do `pip install simples-nacional-br`.** No Claude Code:
 
-Sem `pip`: cada Release traz o pacote
-`simples-nacional-br-<versão>.mcpb`, que o Claude Desktop instala como
-extensão (abra o arquivo nele). Precisa de Python 3.9 ou mais novo no
-computador. O mesmo pacote está no
-[catálogo oficial de servidores MCP](https://registry.modelcontextprotocol.io)
-como `io.github.peterwkdev-creator/simples-nacional-br`.
+```bash
+claude mcp add --transport stdio simples-nacional -- python -m simples_nacional.mcp
+```
+
+No Claude Desktop, o mesmo JSON acima com `"command": "python"` e
+`"args": ["-m", "simples_nacional.mcp"]`. O `python` tem de ser o Python
+em que a biblioteca foi instalada; se o aplicativo não o acha, ponha o
+caminho completo, que `python -c "import sys; print(sys.executable)"`
+mostra.
 
 Quatro ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
 
@@ -473,7 +487,7 @@ e o MEI.
   publicação confiável (sem token guardado), depois de rodar o pacote
   instalado (`.github/conferir-instalado.sh`, que roda também a cada push).
 - `docs/`: o GIF do começo deste README.
-- [`CHANGELOG.md`](CHANGELOG.md): o que mudou em cada versão.
+- [`CHANGELOG.md`](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/CHANGELOG.md): o que mudou em cada versão.
 
 ## Compatibilidade
 
@@ -482,7 +496,7 @@ O que está em `simples_nacional.__all__` e em `simples_nacional.cnae.__all__`
 só muda de forma incompatível numa versão maior (2.0). Função, constante ou
 argumento novo sai numa versão menor (1.1); correção, numa de correção
 (1.0.1). Valor de tabela que muda por lei ou resolução nova sai numa versão
-menor, com a fonte e a data no [CHANGELOG.md](CHANGELOG.md); o mesmo vale
+menor, com a fonte e a data no [CHANGELOG.md](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/CHANGELOG.md); o mesmo vale
 para o anexo de uma subclasse da CNAE, que é leitura da biblioteca. No servidor MCP, o nome
 de cada ferramenta, seus argumentos e as chaves do `structuredContent`
 seguem a mesma regra. Nomes com `_` na frente e o texto dos avisos e das
@@ -502,9 +516,11 @@ preço nem data. Para entrar na lista de espera, reaja com 👍 na
 Achou um valor diferente do PGDAS-D ou da sua conta, ou um caso de borda
 que falta? [Abra uma issue](https://github.com/peterwkdev-creator/simples-nacional-br/issues/new/choose)
 pelo modelo "Valor diferente do esperado", com números inventados. Para
-mandar código, veja o [CONTRIBUTING.md](CONTRIBUTING.md); a conversa segue
-o [código de conduta](CODE_OF_CONDUCT.md).
+mandar código, veja o [CONTRIBUTING.md](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/CONTRIBUTING.md); a conversa segue
+o [código de conduta](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/CODE_OF_CONDUCT.md).
+Falha de segurança não vai em issue: veja o
+[SECURITY.md](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/SECURITY.md), que explica o aviso privado.
 
 ## Licença
 
-[MIT](LICENSE).
+[MIT](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/LICENSE).

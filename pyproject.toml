@@ -5,14 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "simples-nacional-br"  # o do repositório e do catálogo MCP
 dynamic = ["version"]  # uma fonte só: simples_nacional.__version__
-description = "Simples Nacional: alíquota efetiva, valor do mês e Fator R, conferidos contra a LC 123/2006 e a LC 214/2025"
+# a mesma frase do GitHub e do catálogo MCP (mcpb/montar.py, DESCRICAO)
+description = "Simples Nacional conferido contra a LC 123 e a LC 214: alíquota, DAS, repartição, Fator R e CNAE"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Peter" }]
 requires-python = ">=3.9"
 dependencies = []
-keywords = ["simples nacional", "das", "fator r", "lc 123", "tributário"]
+# os mesmos tópicos do repositório no GitHub
+keywords = ["brasil", "simples-nacional", "das", "pgdas-d", "fator-r", "cnae", "lc-123",
+            "tributario", "reforma-tributaria", "ibs", "cbs", "impostos", "contabilidade",
+            "fiscal", "mcp", "mcp-server", "model-context-protocol", "python", "decimal",
+            "pyodide"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -35,10 +40,11 @@ simples-nacional-cnae = "simples_nacional.cnae:main"
 simples-nacional-mcp = "simples_nacional.mcp:main"
 
 [project.urls]
-Homepage = "https://github.com/peterwkdev-creator/simples-nacional-br"
+# como no GitHub: a página inicial é a vitrine; o código, o repositório
+Homepage = "https://peterwkdev-creator.github.io/simples-nacional-br/"
+Source = "https://github.com/peterwkdev-creator/simples-nacional-br"
 Issues = "https://github.com/peterwkdev-creator/simples-nacional-br/issues"
 Changelog = "https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/CHANGELOG.md"
-Experimente = "https://peterwkdev-creator.github.io/simples-nacional-br/"
 
 [tool.setuptools]
 packages = ["simples_nacional"]

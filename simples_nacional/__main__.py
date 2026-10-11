@@ -4,6 +4,7 @@ import argparse
 import sys
 from datetime import date
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
+from pathlib import Path
 
 from . import __version__
 from .calculo import (
@@ -78,7 +79,9 @@ def _mes(texto):
 
 def main(argv=None):
     p = argparse.ArgumentParser(
-        prog="python -m simples_nacional",
+        # pelo pip, o nome do comando; por python -m, argv[0] é o caminho do .py
+        prog=("simples-nacional" if Path(sys.argv[0]).stem == "simples-nacional"
+              else "python -m simples_nacional"),
         description="Alíquota efetiva e valor do mês no Simples Nacional "
                     "(LC 123/2006, redação da LC 155/2016; de 2027 em diante, tabelas "
                     "da LC 214/2025). Estimativa: não "

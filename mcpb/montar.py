@@ -30,9 +30,9 @@ from simples_nacional.mcp import FERRAMENTAS  # noqa: E402
 REPOSITORIO = "https://github.com/peterwkdev-creator/simples-nacional-br"
 VITRINE = "https://peterwkdev-creator.github.io/simples-nacional-br/"
 NOME = "io.github.peterwkdev-creator/simples-nacional-br"
-# o catálogo aceita até 100 caracteres
-DESCRICAO = ("Simples Nacional pela LC 123: alíquota efetiva, DAS, repartição por tributo, "
-             "Fator R e CNAE")
+# o catálogo aceita até 100 caracteres; a mesma frase do pyproject e do GitHub
+DESCRICAO = ("Simples Nacional conferido contra a LC 123 e a LC 214: alíquota, DAS, "
+             "repartição, Fator R e CNAE")
 ESQUEMA = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
 DATA_FIXA = (2026, 1, 1, 0, 0, 0)
 

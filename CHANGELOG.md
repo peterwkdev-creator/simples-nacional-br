@@ -3,6 +3,24 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.5.1 — 11/10
+
+- Página do PyPI: o GIF e os links do README apontam para o GitHub (na
+  1.5.0, relativos, não abriam lá); um teste barra link relativo.
+- `--help` dos comandos instalados mostra o nome digitado
+  (`simples-nacional`, `simples-nacional-cnae`), não `python -m ...`.
+- README: "Instalar" com a primeira conta e a saída que ela dá (testada) e
+  a tabela dos três comandos; "Servidor MCP" com três jeitos de ligar, do
+  mais simples ao mais manual (pacote MCPB, uv, pip).
+- PyPI, GitHub e catálogo MCP com a mesma descrição (um teste confere) e
+  as mesmas palavras-chave; no PyPI, "Homepage" abre a vitrine e
+  "Source", o repositório, como no GitHub.
+- `SECURITY.md`: como avisar uma falha pelo aviso privado do GitHub, o que
+  a biblioteca faz e não faz (sem rede, sem gravar arquivo) e como conferir
+  o atestado de procedência do pacote no PyPI.
+- Workflows: toda action fixada pelo SHA do commit, como já era no da
+  publicação no PyPI (uma tag movida não muda o que roda aqui).
+
 ## 1.5.0 — 11/10
 
 - PyPI: `pip install simples-nacional-br` (o nome do pacote passa de
