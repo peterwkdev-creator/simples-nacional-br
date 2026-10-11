@@ -3,7 +3,7 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
-## Ainda sem versão
+## 1.4.3 — 10/10
 
 - Fontes: limite, sublimite, Fator R e a 6ª faixa de 2027 e 2028 com a URL
   e a data de consulta (texto atualizado da Câmara, 10/10/2026).
