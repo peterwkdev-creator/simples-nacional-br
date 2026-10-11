@@ -31,7 +31,7 @@ def _valido():
 
 def _com_campo(c, tipo):
     """Nome de um campo do tipo pedido na configuração c, criando um se não houver
-    (a do CM só tem campo de arquivo; a da LS, só de texto)."""
+    (uma vitrine pode ter só campo de arquivo; outra, só de texto)."""
     for campo in c["campos"]:
         if (campo["tipo"] == "arquivo") == (tipo == "arquivo"):
             return campo["nome"]
