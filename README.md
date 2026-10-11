@@ -10,7 +10,7 @@ faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
 (redação da LC 155/2016) e, de 2027 em diante, da LC 214/2025. Python puro,
 só a biblioteca padrão, `Decimal` do começo ao fim.
 
-![A página calcula o exemplo do Anexo III e depois o mesmo mês pelo Fator R](https://raw.githubusercontent.com/peterwkdev-creator/simples-nacional-br/main/docs/vitrine.gif)
+![A página calcula o exemplo do Anexo III, o mesmo mês pelo Fator R e a empresa no 3º mês de atividade](https://raw.githubusercontent.com/peterwkdev-creator/simples-nacional-br/main/docs/vitrine.gif)
 
 **[Experimente no navegador](https://peterwkdev-creator.github.io/simples-nacional-br/)**:
 a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
