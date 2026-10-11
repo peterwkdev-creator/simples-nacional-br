@@ -15,7 +15,7 @@ o contador.
 
 **Versão**
 
-<!-- Saída de `python -m simples_nacional --version`. -->
+<!-- Saída de `simples-nacional --version` (ou `python -m simples_nacional --version`). -->
 
 **Fonte, se for regra da lei**
 

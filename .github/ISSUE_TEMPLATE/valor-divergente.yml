@@ -1,6 +1,7 @@
 name: Valor diferente do esperado
 description: A biblioteca deu um valor diferente do PGDAS-D, da sua conta ou da lei, ou falta um caso.
 title: "Valor diferente: Anexo ?, ano ?"
+labels: ["erro"]
 body:
   - type: markdown
     attributes:
@@ -11,8 +12,21 @@ body:
     id: versao
     attributes:
       label: Versão
-      description: "Saída de `python -m simples_nacional --version`."
-      placeholder: simples-nacional 1.0.0
+      description: "Saída de `simples-nacional --version` (ou `python -m simples_nacional --version`)."
+      placeholder: simples-nacional 1.5.2
+    validations:
+      required: true
+  - type: dropdown
+    id: parte
+    attributes:
+      label: Onde apareceu
+      options:
+        - Alíquota efetiva e DAS
+        - Repartição do DAS por tributo
+        - Fator R
+        - CNAE → anexo
+        - Servidor MCP
+        - Vitrine (página no navegador)
     validations:
       required: true
   - type: textarea
@@ -36,3 +50,10 @@ body:
       description: PGDAS-D, conta à mão, artigo da lei ou da resolução.
     validations:
       required: true
+  - type: checkboxes
+    id: dados
+    attributes:
+      label: Dados
+      options:
+        - label: Não há CNPJ, nome nem dado real de empresa nesta issue.
+          required: true
