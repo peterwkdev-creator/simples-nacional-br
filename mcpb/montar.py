@@ -5,7 +5,9 @@ servidores MCP, só com a biblioteca padrão.
 
 Gera `dist/simples-nacional-br-<versão>.mcpb` (zip com o manifest.json, o
 servidor e a biblioteca) e `dist/server.json`. O zip é reprodutível (datas e
-ordem fixas): os mesmos arquivos dão o mesmo fileSha256.
+ordem fixas): os mesmos arquivos dão o mesmo fileSha256. O server.json traz
+também o pacote do PyPI, que o catálogo confere pela linha `mcp-name:` do
+README publicado lá; por isso o workflow espera a versão chegar ao PyPI.
 
 Formatos consultados em 10/10/2026: manifest MCPB 0.3
 (https://github.com/modelcontextprotocol/mcpb/blob/main/MANIFEST.md) e
@@ -28,6 +30,7 @@ from simples_nacional import __version__  # noqa: E402
 from simples_nacional.mcp import FERRAMENTAS  # noqa: E402
 
 REPOSITORIO = "https://github.com/peterwkdev-creator/simples-nacional-br"
+PACOTE = "simples-nacional-br"  # no PyPI; é também o comando que o uvx roda
 VITRINE = "https://peterwkdev-creator.github.io/simples-nacional-br/"
 NOME = "io.github.peterwkdev-creator/simples-nacional-br"
 # o catálogo aceita até 100 caracteres; a mesma frase do pyproject e do GitHub
@@ -112,11 +115,18 @@ def server_json(sha256, versao=__version__):
         "name": NOME,
         "description": DESCRICAO,
         "repository": {"url": REPOSITORIO, "source": "github"},
+        "websiteUrl": VITRINE,
         "version": versao,
         "packages": [{
             "registryType": "mcpb",
             "identifier": endereco(versao),
             "fileSha256": sha256,
+            "transport": {"type": "stdio"},
+        }, {
+            "registryType": "pypi",
+            "identifier": PACOTE,
+            "version": versao,
+            "runtimeHint": "uvx",
             "transport": {"type": "stdio"},
         }],
     }

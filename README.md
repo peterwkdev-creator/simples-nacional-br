@@ -1,6 +1,9 @@
 # simples-nacional-br
 
 [![testes](https://github.com/peterwkdev-creator/simples-nacional-br/actions/workflows/testes.yml/badge.svg)](https://github.com/peterwkdev-creator/simples-nacional-br/actions/workflows/testes.yml)
+[![PyPI](https://img.shields.io/pypi/v/simples-nacional-br?label=PyPI)](https://pypi.org/project/simples-nacional-br/)
+[![Python](https://img.shields.io/pypi/pyversions/simples-nacional-br?label=Python)](https://pypi.org/project/simples-nacional-br/)
+[![licença: MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue)](https://github.com/peterwkdev-creator/simples-nacional-br/blob/main/LICENSE)
 
 Alíquota efetiva, valor do mês e Fator R do **Simples Nacional**, conferidos
 faixa a faixa contra as tabelas oficiais da Lei Complementar 123/2006
@@ -29,13 +32,14 @@ pip install simples-nacional-br
 Python 3.9 ou mais novo, sem nenhuma outra dependência. Testado a cada
 push com Python 3.9 a 3.14 (Linux) e 3.13 (Windows).
 
-A instalação traz três comandos:
+A instalação traz quatro comandos:
 
 | Comando | Para quê |
 |---|---|
 | `simples-nacional` | o DAS do mês: alíquota efetiva, valor e avisos |
 | `simples-nacional-cnae` | o anexo de uma atividade (CNAE), com o fundamento na lei |
 | `simples-nacional-mcp` | o servidor MCP, para o Claude e outros assistentes ("Servidor MCP", abaixo) |
+| `simples-nacional-br` | o mesmo servidor MCP, com o nome do pacote (o que `uvx simples-nacional-br` roda) |
 
 Primeira conta: empresa do Anexo III com R$ 600 mil de receita nos últimos
 12 meses (o RBT12) e R$ 50 mil no mês.
@@ -58,7 +62,7 @@ corrente, e a primeira linha diz qual tabela foi usada.
 Outras formas:
 
 - direto da tag no GitHub:
-  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.2"`;
+  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.6.0"`;
 - sem instalar, do código-fonte (`git clone`): `python -m unittest` roda
   os testes, e `python -m simples_nacional` faz a mesma conta.
 
@@ -342,6 +346,8 @@ python -m simples_nacional.cnae 6920-6/01 1091102 --ano 2027
 
 ### Servidor MCP
 
+<!-- mcp-name: io.github.peterwkdev-creator/simples-nacional-br -->
+
 As mesmas contas como servidor [MCP](https://modelcontextprotocol.io)
 (Model Context Protocol), para o Claude e outros assistentes chamarem. Roda
 no seu computador, pela entrada e saída padrão, só com a biblioteca padrão;
@@ -352,15 +358,16 @@ manual:
 `simples-nacional-br-<versão>.mcpb` da
 [última Release](https://github.com/peterwkdev-creator/simples-nacional-br/releases/latest)
 e abra-o no Claude Desktop, que o instala como extensão. Precisa de Python
-3.9 ou mais novo no computador. O mesmo pacote está no
+3.9 ou mais novo no computador. O
 [catálogo oficial de servidores MCP](https://registry.modelcontextprotocol.io)
-como `io.github.peterwkdev-creator/simples-nacional-br`.
+tem o servidor como `io.github.peterwkdev-creator/simples-nacional-br`, com este
+pacote e o do PyPI.
 
 **2. Com o [uv](https://docs.astral.sh/uv/), sem instalar antes.** No
 Claude Code:
 
 ```bash
-claude mcp add --transport stdio simples-nacional -- uvx --from simples-nacional-br simples-nacional-mcp
+claude mcp add --transport stdio simples-nacional -- uvx simples-nacional-br
 ```
 
 No Claude Desktop, em `claude_desktop_config.json`:
@@ -370,7 +377,7 @@ No Claude Desktop, em `claude_desktop_config.json`:
   "mcpServers": {
     "simples-nacional": {
       "command": "uvx",
-      "args": ["--from", "simples-nacional-br", "simples-nacional-mcp"]
+      "args": ["simples-nacional-br"]
     }
   }
 }
@@ -388,11 +395,12 @@ em que a biblioteca foi instalada; se o aplicativo não o acha, ponha o
 caminho completo, que `python -c "import sys; print(sys.executable)"`
 mostra.
 
-Quatro ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
+Cinco ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
 
 | Ferramenta | Argumentos | Devolve |
 |---|---|---|
 | `calcular_das` | `anexo`, `rbt12`, `receita_mes`, `ano`; `icms_iss_no_das` | faixa, alíquota efetiva, valor do mês e avisos |
+| `calcular_das_inicio_atividade` | `anexo`, `receitas`, `ano`; `mes_inicio` | o mesmo, para empresa sem 12 meses de receita: o RBT12 da média dos meses e os avisos do limite do ano de início |
 | `repartir_das` | `anexo`, `rbt12`, `receita_mes`, `ano` | o valor do mês por tributo e a alíquota de cada um |
 | `planejar_fator_r` | `folha12`, `rbt12`, `receita_mes`, `ano`; `icms_iss_no_das` | o Fator R, a folha que leva a 28% e o valor do mês nos Anexos V e III |
 | `enquadrar_cnae` | `cnae`, `ano`; `folha12`, `rbt12` | a situação da subclasse, o anexo e o fundamento |
@@ -401,9 +409,13 @@ Quatro ferramentas, todas só cálculo (não leem nem gravam nada fora delas):
   apuração, não o de hoje. Os depois do ponto e vírgula são opcionais.
 - Valores em reais, como número JSON ou texto no formato brasileiro
   (`"4.500.000,00"`); a conta é em `Decimal`, sem passar por `float`.
+- `receitas` traz a receita de cada mês, do 1º de atividade até o de
+  apuração (o último); `mes_inicio`, o mês do calendário em que a
+  atividade começou.
 - A resposta vem em texto, para o assistente ler, e em JSON
   (`structuredContent`), com os valores em texto (`"39750.00"`) e o aviso
-  de que é estimativa. Entrada errada ou RBT12 acima do limite volta como
+  de que é estimativa. O `outputSchema` de cada ferramenta descreve esse
+  JSON campo a campo, e os testes conferem toda resposta contra ele. Entrada errada ou RBT12 acima do limite volta como
   erro da ferramenta, com a mensagem da biblioteca.
 - Protocolo: atende a forma com `initialize` (revisões 2025-06-18 e
   2025-11-25) e a sem estado, com `server/discover` (2026-07-28), no mesmo

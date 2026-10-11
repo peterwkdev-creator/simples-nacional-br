@@ -1,7 +1,9 @@
 # Catálogo oficial de servidores MCP (registry.modelcontextprotocol.io).
 # A cada Release publicada: monta o pacote MCPB (mcpb/montar.py), anexa à
 # Release, confere o hash do que o GitHub serve e publica o server.json com o
-# login OIDC do GitHub, sem segredo. Comandos conferidos em 10/10/2026
+# login OIDC do GitHub, sem segredo. O server.json traz também o pacote do
+# PyPI, que o catálogo confere pelo `mcp-name:` do README publicado lá: o job
+# espera a versão chegar ao PyPI (o workflow PyPI pede a aprovação do dono). Comandos conferidos em 10/10/2026
 # (mcp-publisher v1.8.1; docs/modelcontextprotocol-io/github-actions.mdx do
 # modelcontextprotocol/registry).
 #
@@ -36,7 +38,7 @@ jobs:
   publicar:
     needs: testar
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     permissions:
       contents: write  # anexar o .mcpb à Release
       id-token: write  # login OIDC no catálogo
@@ -59,6 +61,16 @@ jobs:
           url=$(python -c "import json; print(json.load(open('dist/server.json'))['packages'][0]['identifier'])")
           sha=$(python -c "import json; print(json.load(open('dist/server.json'))['packages'][0]['fileSha256'])")
           test "$(curl -sfL "$url" | sha256sum | cut -d' ' -f1)" = "$sha"
+      - name: Esperar a versão no PyPI (até 30 minutos)
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          for i in $(seq 60); do
+            curl -sf -o /dev/null "https://pypi.org/pypi/simples-nacional-br/${TAG#v}/json" && exit 0
+            sleep 30
+          done
+          echo "a versão ${TAG#v} não chegou ao PyPI em 30 minutos" >&2
+          exit 1
       # sha256 do asset da release v1.8.1, lido na API do GitHub em 10/10/2026
       - name: mcp-publisher v1.8.1, conferido
         run: |

@@ -76,7 +76,11 @@ class TestPacote(unittest.TestCase):
         self.assertEqual(s["version"], __version__)
         self.assertTrue(1 <= len(s["description"]) <= 100, len(s["description"]))
         self.assertEqual(s["description"], self.manifest["description"])
-        (pacote,) = s["packages"]
+        self.assertEqual(s["websiteUrl"], montar.VITRINE)
+        pacote, pypi = s["packages"]  # o .mcpb primeiro: o workflow confere o [0]
+        self.assertEqual(pypi, {"registryType": "pypi", "identifier": "simples-nacional-br",
+                                "version": __version__, "runtimeHint": "uvx",
+                                "transport": {"type": "stdio"}})
         self.assertEqual(pacote["registryType"], "mcpb")
         self.assertEqual(pacote["transport"], {"type": "stdio"})
         # o catálogo só aceita Release do GitHub, https, com "mcp" no endereço

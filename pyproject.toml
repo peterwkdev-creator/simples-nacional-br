@@ -38,6 +38,8 @@ classifiers = [
 simples-nacional = "simples_nacional.__main__:main"
 simples-nacional-cnae = "simples_nacional.cnae:main"
 simples-nacional-mcp = "simples_nacional.mcp:main"
+# o nome do pacote: `uvx simples-nacional-br` roda o servidor, como o catálogo MCP chama
+simples-nacional-br = "simples_nacional.mcp:main"
 
 [project.urls]
 # como no GitHub: a página inicial é a vitrine; o código, o repositório

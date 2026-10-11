@@ -3,6 +3,22 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.6.0 — 11/10
+
+- Servidor MCP: ferramenta nova, `calcular_das_inicio_atividade`, para a
+  empresa sem 12 meses de receita (Res. CGSN 140, art. 22): recebe a
+  receita de cada mês e devolve o RBT12 da regra, a faixa, a alíquota, o
+  valor do mês e, com `mes_inicio`, os avisos do limite e do sublimite
+  proporcionais. Antes, o assistente tinha de inventar o RBT12. O
+  `rbt12` zero nas outras ferramentas indica a nova.
+- Cada ferramenta descreve a resposta no `outputSchema`; os testes
+  conferem toda resposta contra ele.
+- Catálogo oficial de MCP: além do pacote do Claude Desktop, o do PyPI
+  (`uvx simples-nacional-br`) e o endereço da vitrine. Comando novo,
+  `simples-nacional-br`, o mesmo servidor com o nome do pacote; à mão no
+  terminal, ele diz o que é e como sair.
+- README com os selos do PyPI, das versões do Python e da licença.
+
 ## 1.5.2 — 11/10
 
 - Linha de comando em português: `--help` com "uso:", "opções:" e "mostra

@@ -9,9 +9,10 @@ versão no `_meta` de cada requisição e `server/discover` (2026-07-28).
 Especificação: https://modelcontextprotocol.io/specification, consultada em
 10/10/2026.
 
-Quatro ferramentas, todas cálculo puro: calcular_das, repartir_das,
-planejar_fator_r e enquadrar_cnae. Estimativa: não substitui o PGDAS-D nem
-o contador.
+Cinco ferramentas, todas cálculo puro: calcular_das,
+calcular_das_inicio_atividade, repartir_das, planejar_fator_r e
+enquadrar_cnae. Cada uma descreve a resposta no `outputSchema`. Estimativa:
+não substitui o PGDAS-D nem o contador.
 """
 
 import json
@@ -19,12 +20,14 @@ import sys
 from decimal import Decimal
 
 from . import __version__
-from .calculo import LimiteExcedido, aliquota_efetiva, avisos, faixa, valor_devido
+from .calculo import (LimiteExcedido, _meses, _rbt12_primeiros_meses, aliquota_efetiva,
+                      aliquota_inicio_atividade, avisos, avisos_inicio_atividade, faixa,
+                      valor_devido, valor_devido_inicio_atividade)
 from .cnae import AVISO_INTERPRETACAO, enquadrar
 from .formato import ler_numero, porcentagem, reais
 from .planejamento import planejar_fator_r
 from .reparticao import aliquotas_por_tributo, parcelas_das
-from .tabelas import vigencia
+from .tabelas import LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
 
 VERSAO_SEM_ESTADO = "2026-07-28"
 VERSOES_COM_INITIALIZE = ("2025-11-25", "2025-06-18")  # a mais nova primeiro
@@ -41,7 +44,8 @@ AVISO = "Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D n
 
 INSTRUCOES = (
     "Cálculo do Simples Nacional conferido contra a LC 123/2006 e, de 2027 em diante, a "
-    "LC 214/2025: alíquota efetiva, valor do mês (DAS), repartição por tributo, "
+    "LC 214/2025: alíquota efetiva e valor do mês (DAS), também nos primeiros meses "
+    "de atividade, repartição por tributo, "
     "planejamento do Fator R e enquadramento CNAE -> anexo, para uma empresa por vez. "
     "Valores em reais, como número JSON ou texto no formato brasileiro ('4.500.000,00'). "
     "`ano` é o ano-calendário do mês de apuração, não o de hoje. " + AVISO)
@@ -85,6 +89,43 @@ def _esquema(propriedades, obrigatorias):
             "additionalProperties": False}
 
 
+RECEITAS = {"type": "array", "minItems": 1, "maxItems": 13,
+            "items": _valor("Receita bruta de um mês, em reais."),
+            "description": "Receita de cada mês, do 1º de atividade até o de apuração "
+                           "(o último), inclusive."}
+MES_INICIO = {"type": "integer", "minimum": 1, "maximum": 12,
+              "description": "Mês do calendário (1 a 12) em que a atividade começou: "
+                             "confere o limite e o sublimite proporcionais do ano de "
+                             "início (LC 123, art. 3º, §§ 2º e 11)."}
+
+# --- o que cada ferramenta devolve (structuredContent) ---
+DECIMAL = {"type": "string", "description": "Número em texto, sem notação científica "
+                                             "('39750.00'); fração em alíquota e Fator R "
+                                             "('0.106' é 10,6%)."}
+TEXTO = {"type": "string"}
+AVISOS = {"type": "array", "items": TEXTO}
+INTEIRO = {"type": "integer"}
+POR_TRIBUTO = {"type": "object", "additionalProperties": DECIMAL,
+               "description": "Um campo por tributo (IRPJ, CSLL, Cofins, PIS, CPP, ICMS, "
+                              "ISS; CBS e IBS de 2027 em diante)."}
+
+
+def _objeto(propriedades):
+    """Objeto com todos os campos sempre presentes, nenhum a mais."""
+    return {"type": "object", "properties": propriedades, "required": list(propriedades),
+            "additionalProperties": False}
+
+
+def _saida(propriedades):
+    return _objeto({**propriedades, "aviso": TEXTO})  # o AVISO, em toda resposta
+
+
+FAIXA = _objeto({"numero": {"type": "integer", "minimum": 1, "maximum": 6},
+                "teto": DECIMAL, "aliquota_nominal": DECIMAL, "parcela_deduzir": DECIMAL})
+SAIDA_DAS = {"ano": INTEIRO, "tabela": TEXTO, "anexo": TEXTO, "faixa": FAIXA,
+             "aliquota_efetiva": DECIMAL, "valor_do_mes": DECIMAL, "avisos": AVISOS}
+
+
 FERRAMENTAS = [
     {"name": "calcular_das",
      "title": "Alíquota efetiva e valor do mês",
@@ -92,14 +133,32 @@ FERRAMENTAS = [
                     "Simples Nacional, com os avisos de sublimite e teto.",
      "inputSchema": _esquema({"anexo": ANEXO, "rbt12": RBT12, "receita_mes": RECEITA_MES,
                               "ano": ANO, "icms_iss_no_das": ICMS_ISS},
-                             ["anexo", "rbt12", "receita_mes", "ano"])},
+                             ["anexo", "rbt12", "receita_mes", "ano"]),
+     "outputSchema": _saida(SAIDA_DAS)},
+    {"name": "calcular_das_inicio_atividade",
+     "title": "Valor do mês nos primeiros meses de atividade",
+     "description": "O mesmo de calcular_das para empresa sem 12 meses de receita: o "
+                    "RBT12 sai da média dos meses (LC 123, art. 18, § 2º; Res. CGSN 140, "
+                    "art. 22, com a regra de 2027 em diante), com os avisos do limite "
+                    "proporcional do ano de início.",
+     "inputSchema": _esquema({"anexo": ANEXO, "receitas": RECEITAS, "ano": ANO,
+                              "mes_inicio": MES_INICIO},
+                             ["anexo", "receitas", "ano"]),
+     "outputSchema": _saida({**SAIDA_DAS,
+                             "mes_de_atividade": {"type": "integer", "minimum": 1},
+                             "rbt12": {"type": ["string", "null"],
+                                       "description": "RBT12 da regra; null quando vale "
+                                                      "a alíquota da 1ª faixa."},
+                             "regra": TEXTO})},
     {"name": "repartir_das",
      "title": "Repartição do DAS por tributo",
      "description": "Quanto do valor do mês vai a cada tributo (IRPJ, CSLL, Cofins, PIS, "
                     "CPP, ICMS, ISS e, de 2027 em diante, CBS e IBS), em centavos.",
      "inputSchema": _esquema({"anexo": ANEXO, "rbt12": RBT12, "receita_mes": RECEITA_MES,
                               "ano": ANO},
-                             ["anexo", "rbt12", "receita_mes", "ano"])},
+                             ["anexo", "rbt12", "receita_mes", "ano"]),
+     "outputSchema": _saida({"ano": INTEIRO, "anexo": TEXTO, "valor_do_mes": DECIMAL,
+                             "parcelas": POR_TRIBUTO, "aliquotas": POR_TRIBUTO})},
     {"name": "planejar_fator_r",
      "title": "Planejamento do Fator R",
      "description": "Fator R (folha ÷ RBT12), a folha de 12 meses que leva a 28% e o valor "
@@ -108,7 +167,11 @@ FERRAMENTAS = [
      "inputSchema": _esquema({"folha12": FOLHA12, "rbt12": RBT12,
                               "receita_mes": RECEITA_MES, "ano": ANO,
                               "icms_iss_no_das": ICMS_ISS},
-                             ["folha12", "rbt12", "receita_mes", "ano"])},
+                             ["folha12", "rbt12", "receita_mes", "ano"]),
+     "outputSchema": _saida({"ano": INTEIRO, "fator": DECIMAL, "anexo": TEXTO,
+                             "folha_minima": DECIMAL, "folha_que_falta": DECIMAL,
+                             "das_anexo_v": DECIMAL, "das_anexo_iii": DECIMAL,
+                             "diferenca_das": DECIMAL, "aviso_fator_r": TEXTO})},
     {"name": "enquadrar_cnae",
      "title": "CNAE -> anexo",
      "description": "Situação de uma subclasse da CNAE no Simples: impeditiva (Res. CGSN "
@@ -119,7 +182,16 @@ FERRAMENTAS = [
                                                       "ou 6920601."},
                               "ano": ANO,
                               "folha12": FOLHA12, "rbt12": RBT12},
-                             ["cnae", "ano"])},
+                             ["cnae", "ano"]),
+     "outputSchema": _saida({"ano": INTEIRO, "subclasse": TEXTO, "denominacao": TEXTO,
+                             "situacao": TEXTO,
+                             "anexo": {"type": ["string", "null"],
+                                       "description": "I a V; null se impeditiva, "
+                                                      "ambígua, sem classificação ou "
+                                                      "Fator R sem a folha."},
+                             "fundamento": TEXTO, "observacao": TEXTO,
+                             "fator_r": {"type": ["string", "null"]},
+                             "aviso_interpretacao": TEXTO})},
 ]
 for _ferramenta in FERRAMENTAS:
     _ferramenta["annotations"] = PURO
@@ -138,6 +210,16 @@ def _numero(argumentos, nome):
     valor = argumentos.get(nome)
     if valor is None:
         return None
+    valor = _converter(valor, nome)
+    if nome == "rbt12" and valor <= 0:
+        # a mensagem da biblioteca cita uma função Python, que não é ferramenta aqui
+        raise ErroDeEntrada("rbt12: tem de ser positivo; nos primeiros meses de atividade "
+                            "(RBT12 proporcional, LC 123, art. 18, § 2º), use "
+                            "calcular_das_inicio_atividade com a receita de cada mês")
+    return valor
+
+
+def _converter(valor, nome):
     if isinstance(valor, bool) or not isinstance(valor, (int, Decimal, str)):
         raise ErroDeEntrada(f"{nome}: número ou texto, não {type(valor).__name__}")
     if isinstance(valor, str):
@@ -149,11 +231,6 @@ def _numero(argumentos, nome):
         raise ErroDeEntrada(f"{nome}: não é número finito")
     if Decimal(valor).copy_abs() > TETO:  # copy_abs não passa pelo contexto (abs estoura)
         raise ErroDeEntrada(f"{nome}: acima de R$ 1 trilhão")
-    if nome == "rbt12" and valor <= 0:
-        # a mensagem da biblioteca cita uma função Python, que não é ferramenta aqui
-        raise ErroDeEntrada("rbt12: tem de ser positivo; os primeiros meses de atividade "
-                            "(RBT12 proporcional, LC 123, art. 18, § 2º) não estão nestas "
-                            "ferramentas")
     return valor
 
 
@@ -192,6 +269,45 @@ def calcular_das(a):
              "aliquota_efetiva": _texto(efetiva), "valor_do_mes": _texto(valor),
              "avisos": lista}
     linhas = [f"Anexo {anexo}, {f.numero}ª faixa, ano {ano}: alíquota efetiva "
+              f"{porcentagem(efetiva)}; valor do mês R$ {reais(valor)}."]
+    return dados, linhas + [f"Aviso: {texto}" for texto in lista]
+
+
+def calcular_inicio(a):
+    anexo, ano = _anexo(a), _ano(a)
+    receitas = a["receitas"]
+    if not isinstance(receitas, list) or not receitas:
+        raise ErroDeEntrada("receitas: lista com a receita de cada mês, do 1º de atividade "
+                            "ao de apuração")
+    receitas = [Decimal(_converter(r, "receitas")) for r in receitas]
+    mes_inicio = a.get("mes_inicio")  # avisos_inicio_atividade confere: inteiro de 1 a 12
+    rbt12, regra = _rbt12_primeiros_meses(receitas, ano)
+    f = faixa(anexo, rbt12 or 1, ano=ano)  # sem RBT12: a 1ª faixa
+    efetiva = aliquota_inicio_atividade(anexo, receitas, ano=ano)
+    valor = valor_devido_inicio_atividade(anexo, receitas, ano=ano)
+    ano_inicial = receitas[:12]
+    if mes_inicio is not None:
+        lista = avisos_inicio_atividade(receitas, mes_inicio, ano=ano)
+    elif sum(ano_inicial) > SUBLIMITE_ICMS_ISS / 12 * len(ano_inicial):
+        # o mesmo aviso da linha de comando sem --mes-inicio
+        lista = [f"R$ {reais(sum(ano_inicial))} em {_meses(len(ano_inicial))} passa de "
+                 f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)} por mês. No ano de início de "
+                 f"atividade, o limite é R$ {reais(LIMITE_RECEITA / 12)} e o sublimite "
+                 f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)}, vezes os meses do início até "
+                 "dezembro (LC 123, art. 3º, §§ 2º e 11): informe mes_inicio para "
+                 "conferir."]
+    else:
+        lista = []
+    dados = {"ano": ano, "tabela": vigencia(ano).fonte, "anexo": anexo,
+             "faixa": {"numero": f.numero, "teto": _texto(f.teto),
+                       "aliquota_nominal": _texto(f.aliquota),
+                       "parcela_deduzir": _texto(f.parcela_deduzir)},
+             "aliquota_efetiva": _texto(efetiva), "valor_do_mes": _texto(valor),
+             "avisos": lista, "mes_de_atividade": len(receitas),
+             "rbt12": None if rbt12 is None else _texto(rbt12), "regra": regra}
+    media = "" if rbt12 is None else f" = R$ {reais(rbt12)}"
+    linhas = [f"Início de atividade, {len(receitas)}º mês: {regra}{media}.",
+              f"Anexo {anexo}, {f.numero}ª faixa, ano {ano}: alíquota efetiva "
               f"{porcentagem(efetiva)}; valor do mês R$ {reais(valor)}."]
     return dados, linhas + [f"Aviso: {texto}" for texto in lista]
 
@@ -241,7 +357,8 @@ def enquadrar_cnae(a):
                    e.observacao, AVISO_INTERPRETACAO]
 
 
-EXECUTAR = {"calcular_das": calcular_das, "repartir_das": repartir_das,
+EXECUTAR = {"calcular_das": calcular_das, "calcular_das_inicio_atividade": calcular_inicio,
+            "repartir_das": repartir_das,
             "planejar_fator_r": planejar, "enquadrar_cnae": enquadrar_cnae}
 
 
@@ -376,6 +493,10 @@ def tratar_linha(servidor, linha):
 
 
 def main():
+    if sys.stdin.isatty():  # à mão no terminal (simples-nacional-br, simples-nacional-mcp)
+        print("servidor MCP do Simples Nacional: espera mensagens JSON-RPC na entrada "
+              "padrão (Ctrl+C sai). Para a conta no terminal, use simples-nacional.",
+              file=sys.stderr)
     servidor = Servidor()
     for linha in sys.stdin.buffer:  # sai no fim do stdin, como pede o transporte
         resposta = tratar_linha(servidor, linha)

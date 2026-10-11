@@ -1,4 +1,4 @@
-"""Servidor MCP: as duas formas do protocolo, as quatro ferramentas e o stdio.
+"""Servidor MCP: as duas formas do protocolo, as cinco ferramentas e o stdio.
 
 Formatos conferidos na especificação (https://modelcontextprotocol.io/specification,
 revisões 2025-06-18, 2025-11-25 e 2026-07-28, consultada em 10/10/2026).
@@ -30,10 +30,55 @@ def pedido(metodo, params=None, ident=1, meta=META):
     return {"jsonrpc": "2.0", "id": ident, "method": metodo, "params": params}
 
 
+TIPOS = {"string": str, "array": list, "object": dict, "boolean": bool,
+         "null": type(None), "number": (int, float)}
+
+
+def fora_do_esquema(valor, esquema, caminho="$"):
+    """Onde `valor` foge do esquema (o pedaço do JSON Schema que o servidor usa)."""
+    tipos = esquema.get("type")
+    if tipos is not None:
+        tipos = [tipos] if isinstance(tipos, str) else tipos
+        if not any(type(valor) is int if t == "integer" else
+                   isinstance(valor, TIPOS[t]) and not (t == "number" and valor is True)
+                   for t in tipos):
+            return [f"{caminho}: {valor!r} não é {tipos}"]
+    erros = []
+    if type(valor) is int:
+        if valor < esquema.get("minimum", valor) or valor > esquema.get("maximum", valor):
+            erros.append(f"{caminho}: {valor} fora do intervalo")
+    if isinstance(valor, dict):
+        propriedades = esquema.get("properties", {})
+        extra = esquema.get("additionalProperties", True)
+        erros += [f"{caminho}.{c}: falta" for c in esquema.get("required", [])
+                  if c not in valor]
+        for campo, v in valor.items():
+            if campo in propriedades:
+                erros += fora_do_esquema(v, propriedades[campo], f"{caminho}.{campo}")
+            elif extra is False:
+                erros.append(f"{caminho}.{campo}: campo a mais")
+            elif isinstance(extra, dict):
+                erros += fora_do_esquema(v, extra, f"{caminho}.{campo}")
+    if isinstance(valor, list) and "items" in esquema:
+        for i, v in enumerate(valor):
+            erros += fora_do_esquema(v, esquema["items"], f"{caminho}[{i}]")
+    return erros
+
+
 def chamar(nome, **argumentos):
-    """tools/call na forma sem estado; devolve o result."""
+    """tools/call na forma sem estado; devolve o result.
+
+    Toda resposta certa, em todo teste, passa pelo outputSchema da ferramenta
+    (a especificação manda o structuredContent seguir o esquema declarado).
+    """
     r = Servidor().responder(pedido("tools/call", {"name": nome, "arguments": argumentos}))
-    return r["result"]
+    resultado = r["result"]
+    if resultado.get("isError") is False:
+        (ferramenta,) = [f for f in FERRAMENTAS if f["name"] == nome]
+        dados = json.loads(json.dumps(resultado["structuredContent"]))  # o que o cliente lê
+        erros = fora_do_esquema(dados, ferramenta["outputSchema"])
+        assert not erros, f"{nome}: {erros}"
+    return resultado
 
 
 def erro(resposta):
@@ -58,7 +103,8 @@ class TestSemEstado(unittest.TestCase):
         r = Servidor().responder(pedido("tools/list"))["result"]
         self.assertEqual(r["resultType"], "complete")
         self.assertEqual([f["name"] for f in r["tools"]],
-                         ["calcular_das", "repartir_das", "planejar_fator_r", "enquadrar_cnae"])
+                         ["calcular_das", "calcular_das_inicio_atividade", "repartir_das",
+                          "planejar_fator_r", "enquadrar_cnae"])
         self.assertIn("ttlMs", r)
         self.assertIn("cacheScope", r)
 
@@ -105,7 +151,7 @@ class TestComInitialize(unittest.TestCase):
         self.assertIsNone(s.responder({"jsonrpc": "2.0", "method": "notifications/initialized"}))
         r = s.responder(pedido("tools/list", meta=None))["result"]
         self.assertNotIn("resultType", r)  # a forma antiga não conhece o campo
-        self.assertEqual(len(r["tools"]), 4)
+        self.assertEqual(len(r["tools"]), 5)
         self.assertEqual(s.responder(pedido("ping", meta=None))["result"], {})
 
 
@@ -157,6 +203,23 @@ class TestDescricaoDasFerramentas(unittest.TestCase):
                 self.assertEqual(f["annotations"]["openWorldHint"], False)
                 for nome in f["inputSchema"]["required"]:
                     self.assertIn(nome, f["inputSchema"]["properties"])
+                saida = f["outputSchema"]
+                self.assertEqual(saida["type"], "object")
+                self.assertIs(saida["additionalProperties"], False)
+                self.assertEqual(saida["required"], list(saida["properties"]))
+                self.assertIn("aviso", saida["required"])
+
+    def test_o_conferidor_do_esquema_pega_o_que_foge(self):
+        (das,) = [f["outputSchema"] for f in FERRAMENTAS if f["name"] == "calcular_das"]
+        certo = chamar("calcular_das", anexo="I", rbt12=4500000, receita_mes=375000,
+                       ano=2026)["structuredContent"]
+        self.assertEqual(fora_do_esquema(certo, das), [])
+        for errado in ({**certo, "extra": 1}, {**certo, "ano": "2026"},
+                       {**certo, "ano": True}, {**certo, "avisos": [1]},
+                       {**certo, "faixa": {**certo["faixa"], "numero": 7}},
+                       {c: v for c, v in certo.items() if c != "aviso"}):
+            with self.subTest(errado=errado):
+                self.assertNotEqual(fora_do_esquema(errado, das), [])
 
 
 class TestFerramentas(unittest.TestCase):
@@ -343,6 +406,72 @@ class TestStdio(unittest.TestCase):
         r = subprocess.run([sys.executable, "-c", "import simples_nacional.mcp"],
                            cwd=BIBLIOTECA, capture_output=True, timeout=60)
         self.assertEqual((r.returncode, r.stdout), (0, b""))
+
+
+class TestInicioDeAtividade(unittest.TestCase):
+    """Res. CGSN 140, art. 22; contas feitas à mão com a tabela do Anexo III de 2026
+    (2ª faixa 11,2% e R$ 9.360,00; 3ª, 13,5% e R$ 17.640,00) e do Anexo I (6ª
+    faixa, 19% e R$ 378.000,00)."""
+
+    def calcular(self, **argumentos):
+        return chamar("calcular_das_inicio_atividade", **argumentos)
+
+    def test_terceiro_mes_media_dos_anteriores(self):
+        # (30.000 + 40.000) / 2 × 12 = 420.000; (420.000 × 13,5% - 17.640) / 420.000
+        # = 39.060 / 420.000 = 9,3%; 50.000 × 9,3% = 4.650,00
+        r = self.calcular(anexo="III", receitas=[30000, 40000, 50000], ano=2026)
+        d = r["structuredContent"]
+        self.assertEqual((d["mes_de_atividade"], d["rbt12"], d["faixa"]["numero"]),
+                         (3, "420000", 3))
+        self.assertEqual((d["aliquota_efetiva"], d["valor_do_mes"]), ("0.093", "4650.00"))
+        self.assertIn("art. 22, § 3º", d["regra"])
+        self.assertIn("R$ 4.650,00", r["content"][0]["text"])
+
+    def test_primeiro_mes_ate_2026(self):
+        # 20.000 × 12 = 240.000; (240.000 × 11,2% - 9.360) / 240.000 = 7,3%
+        d = self.calcular(anexo="III", receitas=["20.000,00"], ano=2026)["structuredContent"]
+        self.assertEqual((d["rbt12"], d["aliquota_efetiva"], d["valor_do_mes"]),
+                         ("240000.00", "0.073", "1460.00"))  # os centavos do texto
+
+    def test_dois_primeiros_meses_de_2027_na_primeira_faixa(self):
+        d = self.calcular(anexo="III", receitas=[10000, 20000], ano=2027)["structuredContent"]
+        self.assertIsNone(d["rbt12"])
+        self.assertEqual(d["faixa"]["numero"], 1)
+        self.assertEqual(d["aliquota_efetiva"], d["faixa"]["aliquota_nominal"])
+        self.assertEqual(Decimal(d["valor_do_mes"]),
+                         20000 * Decimal(d["aliquota_efetiva"]))
+        self.assertIn("Res. CGSN 190/2026", d["regra"])
+
+    def test_sublimite_proporcional(self):
+        # média 400.000 × 12 = 4,8 mi, 6ª faixa: (4,8 mi × 19% - 378.000) / 4,8 mi
+        # = 11,125%; de outubro a dezembro, sublimite 300.000 × 3 = 900.000
+        com = self.calcular(anexo="I", receitas=[400000] * 3, ano=2026,
+                            mes_inicio=10)["structuredContent"]
+        self.assertEqual((com["aliquota_efetiva"], com["valor_do_mes"]),
+                         ("0.11125", "44500.00"))
+        (aviso,) = com["avisos"]
+        self.assertIn("sublimite proporcional de R$ 900.000,00", aviso)
+        sem = self.calcular(anexo="I", receitas=[400000] * 3, ano=2026)["structuredContent"]
+        (aviso,) = sem["avisos"]
+        self.assertIn("informe mes_inicio", aviso)
+        sem_aviso = self.calcular(anexo="I", receitas=[1000] * 3, ano=2026)
+        self.assertEqual(sem_aviso["structuredContent"]["avisos"], [])
+
+    def test_entrada_errada(self):
+        casos = [({"receitas": "30000"}, "lista"), ({"receitas": []}, "lista"),
+                 ({"receitas": [1] * 13}, "de 1 a 12 meses"),
+                 ({"receitas": [1, -1]}, "negativo"), ({"receitas": [1, "x"]}, "receitas"),
+                 ({"receitas": [1], "mes_inicio": 13}, "1 a 12"),
+                 ({"receitas": [1], "mes_inicio": "3"}, "mes_inicio")]
+        for argumentos, trecho in casos:
+            with self.subTest(argumentos=argumentos):
+                r = self.calcular(anexo="III", ano=2026, **argumentos)
+                self.assertIs(r["isError"], True)
+                self.assertIn(trecho, r["content"][0]["text"])
+
+    def test_rbt12_zero_indica_a_ferramenta(self):
+        r = chamar("calcular_das", anexo="III", rbt12=0, receita_mes=1, ano=2026)
+        self.assertIn("calcular_das_inicio_atividade", r["content"][0]["text"])
 
 
 class TestReadme(unittest.TestCase):

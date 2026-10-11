@@ -22,3 +22,7 @@ printf '%s\n' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | "$venv/bin/simples-nacional-mcp" | grep -c '"name": "enquadrar_cnae"'
+# o comando com o nome do pacote, que o catálogo MCP chama pelo uvx
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}' \
+  | "$venv/bin/simples-nacional-br" | grep -c '"supportedVersions"'

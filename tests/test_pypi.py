@@ -5,6 +5,7 @@ import contextlib
 import importlib
 import importlib.util
 import io
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -39,6 +40,20 @@ class TestPyPI(unittest.TestCase):
         montar = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(montar)
         self.assertEqual(self.projeto["description"], montar.DESCRICAO)
+
+
+    def test_catalogo_mcp_acha_o_pacote(self):
+        # o catálogo só aceita o pacote do PyPI se o README publicado tiver
+        # "mcp-name: <nome>" seguido de espaço, fim de linha, tag ou -->; e o
+        # uvx roda o comando com o nome do pacote
+        spec = importlib.util.spec_from_file_location("montar_mcpb", RAIZ / "mcpb" / "montar.py")
+        montar = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(montar)
+        self.assertEqual(montar.PACOTE, self.projeto["name"])
+        readme = (RAIZ / self.projeto["readme"]).read_text(encoding="utf-8")
+        self.assertRegex(readme, "mcp-name: " + re.escape(montar.NOME) + r"(\s|<|-->)")
+        self.assertEqual(self.projeto["scripts"][self.projeto["name"]],
+                         "simples_nacional.mcp:main")
 
 
 class TestAjudaDoComandoInstalado(unittest.TestCase):
