@@ -3,6 +3,19 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.5.2 — 11/10
+
+- Linha de comando em português: `--help` com "uso:", "opções:" e "mostra
+  esta ajuda e sai", e os erros de digitação ("faltam argumentos
+  obrigatórios", "valor inválido", "opção inválida"...) no lugar do inglês
+  do argparse. Módulo novo, `simples_nacional.argumentos`, para quem monta
+  um comando em cima da biblioteca; o argparse de quem importa não muda.
+- `simples-nacional --rbt12 0` explica que o RBT12 tem de ser maior que
+  zero e indica `--receitas` para o início de atividade (antes citava uma
+  função da API, que quem usa o comando não tem).
+- `simples_nacional.cnae.main(prog=...)`: quem reexporta o comando mostra o
+  próprio nome na ajuda.
+
 ## 1.5.1 — 11/10
 
 - Página do PyPI: o GIF e os links do README apontam para o GitHub (na

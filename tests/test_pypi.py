@@ -56,7 +56,7 @@ class TestAjudaDoComandoInstalado(unittest.TestCase):
                     with mock.patch.object(sys, "argv", [argv0]), \
                             contextlib.redirect_stdout(saida), self.assertRaises(SystemExit):
                         importlib.import_module(modulo).main(["--help"])
-                    self.assertTrue(saida.getvalue().startswith(f"usage: {prog} "))
+                    self.assertTrue(saida.getvalue().startswith(f"uso: {prog} "))
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from . import cnae_dados
+from .argumentos import Argumentos, nome_do_comando
 from .calculo import anexo_por_fator_r, fator_r
 from .formato import ler_numero, porcentagem
 from .tabelas import vigencia
@@ -162,11 +163,11 @@ def _numero(texto):
         raise argparse.ArgumentTypeError(str(erro)) from None
 
 
-def main(argv=None):
-    p = argparse.ArgumentParser(
-        # pelo pip, o nome do comando; por python -m, argv[0] é o caminho do .py
-        prog=("simples-nacional-cnae" if Path(sys.argv[0]).stem == "simples-nacional-cnae"
-              else "python -m simples_nacional.cnae"),
+def main(argv=None, prog=None):
+    """Linha de comando; `prog` é o nome que a ajuda mostra (outro pacote que
+    reexporte este comando passa o seu)."""
+    p = Argumentos(
+        prog=prog or nome_do_comando("simples-nacional-cnae", "simples_nacional.cnae"),
         description="Situação de subclasses da CNAE no Simples Nacional (Res. CGSN 140, "
                     "Anexos VI e VII, e LC 123, art. 18).")
     p.add_argument("cnae", nargs="+", help="subclasse com 7 dígitos (6920-6/01 ou 6920601)")

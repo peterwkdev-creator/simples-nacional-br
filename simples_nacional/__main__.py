@@ -4,9 +4,9 @@ import argparse
 import sys
 from datetime import date
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
-from pathlib import Path
 
 from . import __version__
+from .argumentos import Argumentos, nome_do_comando
 from .calculo import (
     LimiteExcedido,
     _avisos_receita_do_ano,
@@ -78,10 +78,8 @@ def _mes(texto):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(
-        # pelo pip, o nome do comando; por python -m, argv[0] é o caminho do .py
-        prog=("simples-nacional" if Path(sys.argv[0]).stem == "simples-nacional"
-              else "python -m simples_nacional"),
+    p = Argumentos(
+        prog=nome_do_comando("simples-nacional", "simples_nacional"),
         description="Alíquota efetiva e valor do mês no Simples Nacional "
                     "(LC 123/2006, redação da LC 155/2016; de 2027 em diante, tabelas "
                     "da LC 214/2025). Estimativa: não "
@@ -125,6 +123,10 @@ def main(argv=None):
         p.error("informe --rbt12 e --receita-mes, ou --receitas no início de atividade")
     elif a.mes_inicio is not None:
         p.error("--mes-inicio só vale com --receitas")
+    if a.rbt12 is not None and a.rbt12 <= 0:
+        # a mensagem da API cita aliquota_inicio_atividade, que o comando não tem
+        p.error("--rbt12 tem de ser maior que zero; no início de atividade, sem 12 "
+                "meses de receita, use --receitas (LC 123, art. 18, § 2º)")
     if a.receitas is not None and a.icms_iss_no_das:
         p.error("--icms-iss-no-das só vale com --rbt12")
     if a.receitas is not None and a.receita_ano is not None:

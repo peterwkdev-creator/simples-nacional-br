@@ -58,7 +58,7 @@ corrente, e a primeira linha diz qual tabela foi usada.
 Outras formas:
 
 - direto da tag no GitHub:
-  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.1"`;
+  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.2"`;
 - sem instalar, do código-fonte (`git clone`): `python -m unittest` roda
   os testes, e `python -m simples_nacional` faz a mesma conta.
 
