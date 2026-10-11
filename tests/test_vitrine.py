@@ -1,7 +1,6 @@
 """Vitrine: a configuração, o adaptador e o que o montar leva ao navegador.
 
-Modelo da Coordenação (`modelo/vitrine/LEIA-ME.md`); mora em `tests/` da
-biblioteca. Roda no gancho com os outros testes: se o adaptador deixar de
+Mora em `tests/` da biblioteca. Roda no gancho com os outros testes: se o adaptador deixar de
 devolver o formato que a página desenha, o commit para aqui, não no navegador.
 """
 import importlib.util
@@ -127,7 +126,7 @@ class Projeto(unittest.TestCase):
                 datas = {i.date_time for i in z.infolist()}
                 sistemas = {(i.create_system, i.external_attr) for i in z.infolist()}
             self.assertEqual(datas, {(2020, 1, 1, 0, 0, 0)})
-            # nem o sistema que montou (SN, 10/10: 0 no Windows, 3 no Linux)
+            # nem o sistema que montou (0 no Windows, 3 no Linux)
             self.assertEqual(sistemas, {(3, 0o644 << 16)})
 
 
@@ -173,7 +172,7 @@ class Contrato(unittest.TestCase):
             "campo marcado inexistente": lambda c: c.update(campo_marcado="outro"),
             "chave errada": lambda c: c.update(titlo="x"),
             "chave de campo errada": lambda c: c["campos"][0].update(rotlo="x"),
-            # o 1º campo pode ser de arquivo, e aí o aceita vale (CM, 10/10)
+            # o 1º campo pode ser de arquivo, e aí o aceita vale
             "aceita fora de arquivo": lambda c: c["campos"][0].update(tipo="textarea", aceita=".txt"),
             "repositório sem https": lambda c: c.update(repositorio="github.com/x"),
             "pacote como caminho": lambda c: c.update(pacote="../outro"),

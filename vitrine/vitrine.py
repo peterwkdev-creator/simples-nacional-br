@@ -1,7 +1,6 @@
 """Adaptador da vitrine: liga a biblioteca à página.
 
-Modelo da Coordenação (`modelo/vitrine/LEIA-ME.md`). É o único Python que
-muda por projeto; roda igual aqui e no navegador (Pyodide), e
+É o único Python que muda por projeto; roda igual aqui e no navegador (Pyodide), e
 `vitrine/montar.py` o confere com o exemplo antes de montar.
 
 Contrato: `executar(entradas)` recebe {nome do campo: texto} e devolve

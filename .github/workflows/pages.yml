@@ -1,4 +1,4 @@
-# Vitrine no GitHub Pages (modelo da Coordenação, modelo/vitrine/LEIA-ME.md).
+# Vitrine no GitHub Pages.
 # Versões conferidas em 10/10/2026 (último release de cada action). Os testes
 # e a montagem rodam só com leitura; a escrita no Pages e o OIDC ficam no job
 # que publica, como no modelo do próprio GitHub Pages.

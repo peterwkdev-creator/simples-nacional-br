@@ -12,7 +12,7 @@ PACOTE = "simples_nacional"
 class TestEmpacotamento(unittest.TestCase):
 
     def test_dados_do_pacote_no_package_data(self):
-        # SN, 10/10: o .tsv da 1.3.0 passava no checkout e sumia no pip install, sem aviso
+        # o .tsv da 1.3.0 passava no checkout e sumia no pip install, sem aviso
         import tomllib
         cfg = tomllib.loads((RAIZ / "pyproject.toml").read_text(encoding="utf-8"))
         dados = cfg.get("tool", {}).get("setuptools", {}).get("package-data", {})
