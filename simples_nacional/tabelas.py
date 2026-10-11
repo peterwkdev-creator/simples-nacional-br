@@ -148,6 +148,7 @@ def quinta_faixa_icms_iss_ibs(anexo, *, ano):
         linha = PARTILHA_DESDE_2029[max(a for a in PARTILHA_DESDE_2029 if a <= ano)][chave][4]
     return _icms_iss(linha), linha.get("IBS", Decimal(0))
 
+
 # LC 123, art. 18, § 5º-J: Anexo III quando folha / receita for "igual ou
 # superior a 28%"; senão Anexo V (§ 5º-M). Folha conforme o § 24. Texto
 # atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.

@@ -23,8 +23,6 @@ class LimiteExcedido(ValueError):
     """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
 
 
-
-
 def _anexo(anexo, ano):
     anexos = vigencia(ano).anexos
     chave = anexo.upper() if isinstance(anexo, str) else None

@@ -76,8 +76,6 @@ def _mes(texto):
     return int(texto)
 
 
-
-
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python -m simples_nacional",

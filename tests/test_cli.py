@@ -154,6 +154,7 @@ class TestCli(unittest.TestCase):
         self.assertIn("--receitas", r.stderr)
         self.assertNotIn("Traceback", r.stderr)
 
+
 class TestCliEntradas(unittest.TestCase):
 
     def test_folha12_sem_fator_r_e_erro(self):
