@@ -3,7 +3,7 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
-## Ainda sem versão
+## 1.5.0 — 11/10
 
 - PyPI: `pip install simples-nacional-br` (o nome do pacote passa de
   `simples-nacional` a `simples-nacional-br`, o do repositório; o `import
@@ -13,7 +13,7 @@ cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
   e `simples-nacional-mcp`; com o uv, `uvx --from simples-nacional-br
   simples-nacional-mcp` roda o servidor MCP sem instalar antes.
 - CI: a cada push, monta o wheel e roda os três comandos num venv, fora do
-  checkout.
+  checkout, e confere a descrição com `twine check --strict`.
 
 ## 1.4.3 — 10/10
 

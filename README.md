@@ -29,7 +29,7 @@ pip install simples-nacional-br
 Ou direto da tag no GitHub:
 
 ```bash
-pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.3"
+pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.5.0"
 ```
 
 Sem dependência; Python 3.9 ou mais novo. A instalação traz três
