@@ -5,6 +5,7 @@ valores, com a conta feita à mão, e as entradas que a página pode receber.
 """
 import importlib.util
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -14,8 +15,10 @@ _spec.loader.exec_module(montar)
 vitrine = montar.carregar_adaptador(RAIZ)
 
 
-def entradas(anexo="III", ano="2026", rbt12="1.500.000,00", receita_mes="100.000,00", folha12=""):
-    return {"anexo": anexo, "ano": ano, "rbt12": rbt12, "receita_mes": receita_mes, "folha12": folha12}
+def entradas(anexo="III", ano="2026", rbt12="1.500.000,00", receita_mes="100.000,00", folha12="",
+             receitas="", mes_inicio=""):
+    return {"anexo": anexo, "ano": ano, "rbt12": rbt12, "receita_mes": receita_mes, "folha12": folha12,
+            "receitas": receitas, "mes_inicio": mes_inicio}
 
 
 class TestAdaptador(unittest.TestCase):
@@ -142,6 +145,90 @@ class TestAdaptador(unittest.TestCase):
         for nome, (campos, trecho) in casos.items():
             with self.subTest(nome):
                 res = self.rodar(**campos)
+                self.assertTrue(res["resumo"].startswith("Não deu para calcular. "), res["resumo"])
+                self.assertIn(trecho, res["resumo"])
+                self.assertNotIn("tabela", res)
+
+
+
+class TestInicioDeAtividade(unittest.TestCase):
+    """Res. CGSN 140, art. 22, com a conta à mão; a mesma do MCP e da linha de comando."""
+
+    rodar, passo = TestAdaptador.rodar, TestAdaptador.passo
+
+    def inicio(self, receitas, **campos):
+        return self.rodar(rbt12="", receita_mes="", receitas=receitas, **campos)
+
+    def test_terceiro_mes_de_2026(self):
+        # (30.000 + 40.000) ÷ 2 × 12 = 420.000, 3ª faixa do Anexo III (13,5%, 17.640):
+        # (420.000 × 0,135 − 17.640) ÷ 420.000 = 39.060 ÷ 420.000 = 9,3%; × 50.000 = 4.650,00
+        res = self.inicio("30.000,00;40.000,00;50.000,00", mes_inicio="10")
+        self.assertEqual(res["resumo"], "Alíquota efetiva de 9,3000% na 3ª faixa do Anexo III: "
+                                        "R$ 4.650,00 no 3º mês de atividade, pela tabela de 2026.")
+        self.assertEqual(self.passo(res, "Mês de atividade"), ["3º"])
+        (regra,) = self.passo(res, "Regra do início")
+        self.assertIn("art. 22, § 3º", regra)
+        self.assertTrue(regra.endswith("= R$ 420.000,00"), regra)
+        self.assertEqual(self.passo(res, "Faixa"), ["3ª do Anexo III, RBT12 até R$ 720.000,00"])
+        self.assertTrue(self.passo(res, "Valor do mês")[0].startswith("R$ 4.650,00 "))
+        # a repartição soma o DAS: 186,00 + 162,75 + 634,26 + 137,64 + 2.018,10 + 1.511,25
+        parcelas = [valor for passo, valor in res["tabela"]["linhas"] if passo.startswith("No DAS: ")]
+        self.assertEqual(sum(Decimal(p.split()[1].replace(".", "").replace(",", "."))
+                             for p in parcelas), Decimal("4650.00"))
+        self.assertEqual(self.passo(res, "Aviso"), [])  # 120.000 cabe em 900.000
+
+    def test_primeiro_mes_de_2026(self):
+        # 20.000 × 12 = 240.000, 2ª faixa (11,2%, 9.360): 17.520 ÷ 240.000 = 7,3%; × 20.000 = 1.460,00
+        res = self.inicio("20.000")
+        self.assertIn("R$ 1.460,00 no 1º mês", res["resumo"])
+        self.assertIn("art. 22, § 2º", self.passo(res, "Regra do início")[0])
+
+    def test_dois_primeiros_meses_de_2027_na_primeira_faixa(self):
+        # Res. CGSN 190/2026: 1ª faixa do Anexo III de 2027, 6%; 20.000 × 0,06 = 1.200,00
+        res = self.inicio("10.000;20.000", ano="2027")
+        self.assertIn("6,0000% na 1ª faixa", res["resumo"])
+        self.assertIn("R$ 1.200,00 no 2º mês", res["resumo"])
+        self.assertEqual(self.passo(res, "Faixa"), ["1ª do Anexo III"])
+        self.assertEqual(self.passo(res, "Alíquota efetiva"), ["6,0000% = nominal da 1ª faixa"])
+        self.assertIn("Res. CGSN 190/2026", self.passo(res, "Regra do início")[0])
+        parcelas = [valor for passo, valor in res["tabela"]["linhas"] if passo.startswith("No DAS: ")]
+        self.assertEqual(sum(Decimal(p.split()[1].replace(".", "").replace(",", "."))
+                             for p in parcelas), Decimal("1200.00"))
+
+    def test_sublimite_proporcional(self):
+        # 400.000 × 3 = 1,2 mi; de outubro a dezembro, sublimite 300.000 × 3 = 900.000
+        com = self.inicio("400.000;400.000;400.000", anexo="I", mes_inicio="10")
+        (aviso,) = self.passo(com, "Aviso")
+        self.assertIn("sublimite proporcional de R$ 900.000,00", aviso)
+        self.assertTrue(com["resumo"].endswith(" Há aviso na tabela."))
+        sem = self.inicio("400.000;400.000;400.000", anexo="I")
+        (aviso,) = self.passo(sem, "Aviso")
+        self.assertIn("informe o mês de início", aviso)
+
+    def test_combinacoes_que_nao_valem(self):
+        casos = {
+            "RBT12 junto": (self.rodar(receitas="1"), "deixe em branco o RBT12"),
+            "receita do mês junto": (self.rodar(rbt12="", receitas="1"), "deixe em branco o RBT12"),
+            "Fator R": (self.inicio("1", anexo="Fator R"), "o Fator R não é calculado"),
+            "mês sem receitas": (self.rodar(mes_inicio="3"), "só vale com as receitas"),
+            "sem o anexo": (self.inicio("1", anexo=""), "Falta o anexo."),
+        }
+        for nome, (res, trecho) in casos.items():
+            with self.subTest(nome):
+                self.assertIn(trecho, res["resumo"])
+                self.assertNotIn("tabela", res)
+
+    def test_entrada_invalida_vira_resumo(self):
+        casos = {
+            "número": (dict(receitas="1;x"), "receitas: 'x' não é número"),
+            "13 meses em 2026": (dict(receitas=";".join(["1"] * 13)), "de 1 a 12 meses"),
+            "negativo": (dict(receitas="1;-1"), "negativo"),
+            "mês 13": (dict(receitas="1", mes_inicio="13"), "mês de início: '13' não é mês"),
+            "mês por extenso": (dict(receitas="1", mes_inicio="março"), "não é mês"),
+        }
+        for nome, (campos, trecho) in casos.items():
+            with self.subTest(nome):
+                res = self.inicio(**campos)
                 self.assertTrue(res["resumo"].startswith("Não deu para calcular. "), res["resumo"])
                 self.assertIn(trecho, res["resumo"])
                 self.assertNotIn("tabela", res)

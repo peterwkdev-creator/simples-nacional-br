@@ -13,9 +13,13 @@ from decimal import ROUND_DOWN, Decimal
 
 from simples_nacional import (
     FATOR_R_MINIMO,
+    LIMITE_RECEITA,
+    SUBLIMITE_ICMS_ISS,
     aliquota_efetiva,
+    aliquota_inicio_atividade,
     aliquotas_por_tributo,
     avisos,
+    avisos_inicio_atividade,
     faixa,
     ler_numero,
     parcelas_das,
@@ -23,8 +27,10 @@ from simples_nacional import (
     porcentagem,
     reais,
     valor_devido,
+    valor_devido_inicio_atividade,
     vigencia,
 )
+from simples_nacional.calculo import _meses, _rbt12_primeiros_meses
 
 AVISO = "Estimativa pela tabela da lei: não substitui o PGDAS-D nem o contador."
 
@@ -66,11 +72,80 @@ def _percentual_cortado(fracao):
     return f"{(fracao * 100).quantize(Decimal('0.0001'), ROUND_DOWN)}".replace(".", ",") + "%"
 
 
+def _mes_inicio(texto):
+    texto = texto.strip()
+    if not (texto.isascii() and texto.isdigit() and 1 <= int(texto) <= 12):
+        raise ValueError(f"mês de início: {texto!r} não é mês (use de 1 a 12)")
+    return int(texto)
+
+
+def _calcular_inicio(entradas, ano, anexo):
+    """Empresa com menos de 12 meses: a mesma conta do MCP e da linha de comando."""
+    if anexo.replace(" ", "").replace("-", "") == "FATORR":
+        return {"resumo": "Com as receitas de cada mês, o Fator R não é calculado: "
+                          "informe o anexo, III ou V.", "aviso": AVISO}
+    receitas = [_numero(parte, "receitas") for parte in entradas["receitas"].split(";")]
+    rbt12, regra = _rbt12_primeiros_meses(receitas, ano)
+    f = faixa(anexo, rbt12 or 1, ano=ano)  # sem RBT12: a 1ª faixa
+    efetiva = aliquota_inicio_atividade(anexo, receitas, ano=ano)
+    valor = valor_devido_inicio_atividade(anexo, receitas, ano=ano)
+    mes = len(receitas)
+    linhas = [
+        ["Mês de atividade", f"{mes}º"],
+        ["Regra do início", regra + ("" if rbt12 is None else f" = R$ {reais(rbt12)}")],
+        ["Tabela", vigencia(ano).fonte],
+        ["Faixa", f"{f.numero}ª do Anexo {anexo}"
+         + ("" if rbt12 is None else f", RBT12 até R$ {reais(f.teto)}")],
+        ["Alíquota nominal", porcentagem(f.aliquota)],
+        ["Parcela a deduzir", f"R$ {reais(f.parcela_deduzir)}"],
+        ["Alíquota efetiva", f"{porcentagem(efetiva)} = "
+         + ("nominal da 1ª faixa" if rbt12 is None
+            else "(RBT12 × nominal − parcela) ÷ RBT12")],
+        ["Valor do mês", f"R$ {reais(valor)} = receita do mês (a última da lista) × efetiva, "
+                         "arredondado no centavo"],
+    ]
+    # na 1ª faixa a efetiva é a nominal para qualquer RBT12 dela: o teto reparte igual
+    base = f.teto if rbt12 is None else rbt12
+    taxas = aliquotas_por_tributo(anexo, base, ano=ano)
+    linhas += [[f"No DAS: {tributo}", f"R$ {reais(parcela)} ({porcentagem(taxas[tributo])} da receita)"]
+               for tributo, parcela in parcelas_das(anexo, base, receitas[-1], ano=ano).items()]
+    texto_mes = entradas.get("mes_inicio", "").strip()
+    ano_inicial = receitas[:12]
+    if texto_mes:
+        achados = avisos_inicio_atividade(receitas, _mes_inicio(texto_mes), ano=ano)
+    elif sum(ano_inicial) > SUBLIMITE_ICMS_ISS / 12 * len(ano_inicial):
+        achados = [f"R$ {reais(sum(ano_inicial))} em {_meses(len(ano_inicial))} passa de "
+                   f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)} por mês. No ano de início de "
+                   f"atividade, o limite é R$ {reais(LIMITE_RECEITA / 12)} e o sublimite "
+                   f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)}, vezes os meses do início até "
+                   "dezembro (LC 123, art. 3º, §§ 2º e 11): informe o mês de início "
+                   "para conferir."]
+    else:
+        achados = []
+    linhas += [["Aviso", a] for a in achados]
+    resumo = (f"Alíquota efetiva de {porcentagem(efetiva)} na {f.numero}ª faixa do "
+              f"Anexo {anexo}: R$ {reais(valor)} no {mes}º mês de atividade, pela tabela de {ano}.")
+    if achados:
+        resumo += " Há aviso na tabela."
+    return {
+        "resumo": resumo,
+        "aviso": AVISO,
+        "tabela": {"titulo": "A conta, passo a passo", "colunas": ["Passo", "Valor"], "linhas": linhas},
+    }
+
+
 def _calcular(entradas):
     ano = _ano(entradas["ano"])
+    anexo = entradas["anexo"].strip().upper()
+    if entradas.get("receitas", "").strip():
+        if entradas.get("rbt12", "").strip() or entradas.get("receita_mes", "").strip():
+            return {"resumo": "Com as receitas de cada mês, deixe em branco o RBT12 e a "
+                              "receita do mês: a conta sai das receitas.", "aviso": AVISO}
+        return _calcular_inicio(entradas, ano, anexo)
+    if entradas.get("mes_inicio", "").strip():
+        return {"resumo": "O mês de início só vale com as receitas de cada mês.", "aviso": AVISO}
     rbt12 = _numero(entradas["rbt12"], "RBT12")
     receita = _numero(entradas["receita_mes"], "receita do mês")
-    anexo = entradas["anexo"].strip().upper()
     linhas = []
     plano = None
     if anexo.replace(" ", "").replace("-", "") == "FATORR":
@@ -127,7 +202,9 @@ def _calcular(entradas):
 
 
 def executar(entradas):
-    faltam = [nome for campo, nome in OBRIGATORIOS.items() if not entradas.get(campo, "").strip()]
+    base = OBRIGATORIOS if not entradas.get("receitas", "").strip() else {
+        campo: OBRIGATORIOS[campo] for campo in ("anexo", "ano")}
+    faltam = [nome for campo, nome in base.items() if not entradas.get(campo, "").strip()]
     if faltam:
         return {"resumo": f"{'Falta' if len(faltam) == 1 else 'Faltam'} {_lista(faltam)}.", "aviso": AVISO}
     try:

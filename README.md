@@ -14,7 +14,8 @@ só a biblioteca padrão, `Decimal` do começo ao fim.
 
 **[Experimente no navegador](https://peterwkdev-creator.github.io/simples-nacional-br/)**:
 a página roda esta mesma biblioteca, testada, no seu navegador (Pyodide):
-alíquota efetiva, valor do mês, a parte de cada tributo e, com o Fator R,
+alíquota efetiva, valor do mês, a parte de cada tributo (também da
+empresa com menos de 12 meses, pela receita de cada mês) e, com o Fator R,
 a folha que leva ao Anexo III e quanto muda o DAS. Nenhum número sai do
 seu computador. Na primeira visita o navegador baixa
 cerca de 6 MB (o Python do Pyodide; a biblioteca são 61 KB); depois, cada
