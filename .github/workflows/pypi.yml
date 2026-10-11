@@ -1,0 +1,59 @@
+# PyPI (https://pypi.org/project/simples-nacional-br/). A cada Release
+# publicada: testa, monta o sdist e o wheel, roda o que o pip instala e
+# publica pela publicação confiável (OIDC), sem token guardado. No PyPI, o
+# projeto aceita só este arquivo, deste repositório, no ambiente "pypi".
+# Toda action fixada pelo commit da versão do comentário, lido na API do
+# GitHub em 11/10/2026 (tag se move; o Dependabot atualiza o par).
+#
+# Os testes e a montagem rodam num job só de leitura; o de publicar recebe
+# só o dist/ montado e o OIDC. Pré-release não publica. No GitHub, o
+# ambiente "pypi" aceita só tags v* e pede a aprovação do dono.
+name: PyPI
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  montar:
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Testes
+        run: python -m unittest -q
+      - name: A tag é a versão da biblioteca
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: test "$TAG" = "v$(python -c 'import simples_nacional as s; print(s.__version__)')"
+      - name: Montar e rodar o pacote instalado
+        run: bash .github/conferir-instalado.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publicar:
+    needs: montar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/simples-nacional-br/
+    permissions:
+      id-token: write  # publicação confiável no PyPI
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2

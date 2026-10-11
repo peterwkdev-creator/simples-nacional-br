@@ -23,11 +23,20 @@ conta leva de 0 a 2 ms (medido na página publicada em 10/10/2026).
 ## Instalar
 
 ```bash
+pip install simples-nacional-br
+```
+
+Ou direto da tag no GitHub:
+
+```bash
 pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.4.3"
 ```
 
-Sem dependência; Python 3.9 ou mais novo. Para só experimentar, nem precisa
-instalar: do checkout limpo, os dois comandos abaixo rodam como estão.
+Sem dependência; Python 3.9 ou mais novo. A instalação traz três
+comandos: `simples-nacional` (o mesmo que `python -m simples_nacional`),
+`simples-nacional-cnae` e `simples-nacional-mcp`. Para só experimentar, nem
+precisa instalar: do checkout limpo, os dois comandos abaixo rodam como
+estão.
 
 ```bash
 python -m unittest
@@ -329,6 +338,12 @@ nenhum número sai dali. Depois do `pip install` acima:
 python -m simples_nacional.mcp
 ```
 
+Com o [uv](https://docs.astral.sh/uv/), sem instalar antes:
+
+```bash
+uvx --from simples-nacional-br simples-nacional-mcp
+```
+
 No Claude Code:
 
 ```bash
@@ -454,6 +469,9 @@ e o MEI.
 - `mcpb/`: o pacote MCPB do servidor MCP e o `server.json` do catálogo. O
   GitHub Actions os monta, anexa o pacote à Release e publica no catálogo a
   cada versão (`.github/workflows/catalogo-mcp.yml`).
+- `.github/workflows/pypi.yml`: publica no PyPI a cada versão, pela
+  publicação confiável (sem token guardado), depois de rodar o pacote
+  instalado (`.github/conferir-instalado.sh`, que roda também a cada push).
 - `docs/`: o GIF do começo deste README.
 - [`CHANGELOG.md`](CHANGELOG.md): o que mudou em cada versão.
 
