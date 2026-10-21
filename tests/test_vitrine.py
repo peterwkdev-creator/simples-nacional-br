@@ -1,6 +1,7 @@
 """Vitrine: a configuração, o adaptador e o que o montar leva ao navegador.
 
-Mora em `tests/` da biblioteca. Roda no gancho com os outros testes: se o adaptador deixar de
+Mora em `tests/` da
+biblioteca. Roda no gancho com os outros testes: se o adaptador deixar de
 devolver o formato que a página desenha, o commit para aqui, não no navegador.
 """
 import importlib.util
@@ -129,6 +130,34 @@ class Projeto(unittest.TestCase):
             # nem o sistema que montou (0 no Windows, 3 no Linux)
             self.assertEqual(sistemas, {(3, 0o644 << 16)})
 
+    def test_pagina_sem_js_mostra_o_projeto(self):
+        # Prévia de link e indexador não rodam JS: título, descrição e língua
+        # saem gravados no HTML, com escape.
+        cfg = json.loads((RAIZ / "vitrine" / "vitrine.json").read_text(encoding="utf-8"))
+        cfg = {**cfg, "titulo": 'A <b> & "c"', "descricao": 'D "e" <f>', "lang": "en"}
+        texto = montar.pagina(RAIZ, cfg).decode("utf-8")
+        self.assertIn("<title>A &lt;b&gt; &amp; &quot;c&quot;</title>", texto)
+        self.assertIn('<meta name="description" content="D &quot;e&quot; &lt;f&gt;">', texto)
+        self.assertIn('<html lang="en">', texto)
+        self.assertNotIn("<title>Vitrine</title>", texto)
+
+    def test_montar_grava_a_pagina(self):
+        # O index.html que sai do montar é o da pagina(), não a cópia do modelo.
+        cfg = json.loads((RAIZ / "vitrine" / "vitrine.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as tmp:
+            montar.montar(RAIZ, Path(tmp) / "site")
+            gravado = (Path(tmp) / "site" / "index.html").read_bytes()
+        self.assertEqual(gravado, montar.pagina(RAIZ, cfg))
+        self.assertNotIn(b"<title>Vitrine</title>", gravado)
+
+    def test_pagina_sem_a_marca_e_recusada(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            copia = Path(tmp) / "b"
+            (copia / "vitrine").mkdir(parents=True)
+            (copia / "vitrine" / "index.html").write_text('<html lang="pt-BR"><title>Outro</title>', encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                montar.pagina(copia, {"titulo": "x", "descricao": "y"})
+
 
 class Contrato(unittest.TestCase):
     """Duas provas do conferidor: aceita o válido, pega cada defeito plantado."""
@@ -171,6 +200,9 @@ class Contrato(unittest.TestCase):
             "sem exemplo": lambda c: c["campos"][0].pop("exemplo"),
             "campo marcado inexistente": lambda c: c.update(campo_marcado="outro"),
             "chave errada": lambda c: c.update(titlo="x"),
+            "título vazio": lambda c: c.update(titulo=" "),
+            "descrição não texto": lambda c: c.update(descricao=3),
+            "lang vazio": lambda c: c.update(lang=""),
             "chave de campo errada": lambda c: c["campos"][0].update(rotlo="x"),
             # o 1º campo pode ser de arquivo, e aí o aceita vale
             "aceita fora de arquivo": lambda c: c["campos"][0].update(tipo="textarea", aceita=".txt"),
