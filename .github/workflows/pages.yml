@@ -19,6 +19,8 @@ concurrency:
 jobs:
   montar:
     runs-on: ubuntu-latest
+    # testes e montagem levam segundos; sem teto, um processo preso segura o job por 6 h
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -38,6 +40,7 @@ jobs:
   publicar:
     needs: montar
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
