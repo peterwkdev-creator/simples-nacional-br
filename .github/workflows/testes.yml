@@ -24,8 +24,11 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         # 3.14: o Python do Pyodide da vitrine
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         include:
+          # o ubuntu-latest (26.04) não tem 3.9 no setup-python (20/10/2026)
+          - os: ubuntu-24.04
+            python: "3.9"
           - os: windows-latest
             python: "3.13"
     steps:
