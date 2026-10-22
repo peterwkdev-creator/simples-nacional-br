@@ -180,6 +180,17 @@ class TestCliEntradas(unittest.TestCase):
     def test_ajuda_cita_a_lc_214(self):
         self.assertIn("LC 214/2025", rodar("--help").stdout)
 
+    def test_valor_enorme_e_erro_sem_traceback(self):
+        for opcao in ("--receita-mes", "--rbt12"):
+            with self.subTest(opcao=opcao):
+                valores = {"--rbt12": "100000", "--receita-mes": "1000"}
+                valores[opcao] = "1" + "0" * 40
+                args = [x for par in valores.items() for x in par]
+                r = rodar("--ano", "2026", "--anexo", "I", *args)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("trilhão", r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+
 
 class TestCli034(unittest.TestCase):
 

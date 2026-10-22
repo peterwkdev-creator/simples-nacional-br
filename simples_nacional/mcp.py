@@ -24,7 +24,7 @@ from .calculo import (LimiteExcedido, _meses, _rbt12_primeiros_meses, aliquota_e
                       aliquota_inicio_atividade, avisos, avisos_inicio_atividade, faixa,
                       valor_devido, valor_devido_inicio_atividade)
 from .cnae import AVISO_INTERPRETACAO, enquadrar
-from .formato import ler_numero, porcentagem, reais
+from .formato import TETO, ler_numero, porcentagem, reais
 from .planejamento import planejar_fator_r
 from .reparticao import aliquotas_por_tributo, parcelas_das
 from .tabelas import LIMITE_RECEITA, SUBLIMITE_ICMS_ISS, vigencia
@@ -199,11 +199,6 @@ for _ferramenta in FERRAMENTAS:
 
 class ErroDeEntrada(ValueError):
     """Argumento que não serve: volta ao modelo como erro da ferramenta."""
-
-
-# nenhum valor de empresa do Simples chega perto; 1E+999999999 é JSON válido e
-# estouraria o Decimal no meio da conta
-TETO = Decimal("1E12")
 
 
 def _numero(argumentos, nome):

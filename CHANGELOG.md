@@ -3,6 +3,19 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.6.1 — 22/10
+
+- Número acima de R$ 1 trilhão (positivo ou negativo) é `ValueError`
+  com o nome do campo em todas as funções, como já era no servidor MCP.
+  Antes, `valor_devido("I", 100000, "1e40")` e `reais(10**30)` soltavam
+  o `InvalidOperation` do Decimal, e a linha de comando saía com
+  traceback. O teto (`formato.TETO`) é o mesmo do servidor MCP.
+- `ler_numero` recusa vírgula seguida de três dígitos sem ponto ("1,000", "1234,567"):
+  é mil numa planilha em inglês e um no Brasil. Antes, virava um real,
+  sem aviso. Valor que não é texto é `TypeError`, não `AttributeError`.
+- O pacote de código-fonte (sdist) leva `mcpb/`, `vitrine/` e o
+  CHANGELOG: os testes rodam a partir dele sem `FileNotFoundError`.
+
 ## 1.6.0 — 11/10
 
 - Servidor MCP: ferramenta nova, `calcular_das_inicio_atividade`, para a

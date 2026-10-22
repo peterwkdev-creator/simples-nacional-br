@@ -10,6 +10,9 @@ from decimal import (Context, Decimal, DivisionByZero, InvalidOperation, Overflo
                      ROUND_HALF_EVEN, ROUND_HALF_UP, localcontext)
 
 CENTAVO = Decimal("0.01")
+# Nenhuma empresa do Simples chega perto de R$ 1 trilhão; 1E+999999999 é
+# número válido e estouraria o Decimal no meio da conta.
+TETO = Decimal("1E12")
 
 # Precisão e arredondamento fixos nas contas da biblioteca: um
 # getcontext().prec = 6 no programa de quem a usa faria o quantize do
@@ -30,6 +33,7 @@ def _contexto_fixo(funcao):
 _MILHAR = re.compile(r"-?[1-9]\d{0,2}(\.\d{3})+(,\d+)?")  # 360.000 e 1.000,50
 _VIRGULA = re.compile(r"-?\d+(,\d+)?")                # 1000,50
 _PONTO = re.compile(r"-?\d+(\.\d{1,2})?")             # 4500000.00
+_VIRGULA_E_TRES = re.compile(r"-?[1-9]\d*,\d{3}")     # 1,000: mil ou um?
 _REAIS = re.compile(r"R\$\s*")                        # R$ 1.000,50, como o Excel copia
 
 
@@ -39,12 +43,18 @@ def ler_numero(texto):
 
     Ponto seguido de três dígitos é milhar, como se escreve no Brasil; o que
     não casa com nenhum formato (1,000.50, 1.0000, 100 000) é recusado com
-    ValueError, não adivinhado.
+    ValueError, não adivinhado; 1,000 também, que é mil no Excel em inglês e
+    um no Brasil. Recebe texto: outro tipo é TypeError.
     """
+    if not isinstance(texto, str):
+        raise TypeError(f"ler_numero: esperado texto, veio {type(texto).__name__}")
     numero = texto.strip()
     sem_rs = _REAIS.match(numero)
     if sem_rs:
         numero = numero[sem_rs.end():]
+    if _VIRGULA_E_TRES.fullmatch(numero):
+        raise ValueError(f"número ambíguo: {texto!r} "
+                         "(milhar com ponto, 1.000; centavos com duas casas, 1,00)")
     if _MILHAR.fullmatch(numero) or _VIRGULA.fullmatch(numero):
         normal = numero.replace(".", "").replace(",", ".")
     elif _PONTO.fullmatch(numero):
@@ -59,7 +69,8 @@ def para_decimal(valor, nome):
 
     `nome` abre a mensagem de erro (`rbt12: não é número: 'abc'`). O texto se
     lê como no Decimal, com ponto decimal ("12.625"); o que o usuário digita
-    no formato brasileiro ("360.000") passa antes por ler_numero.
+    no formato brasileiro ("360.000") passa antes por ler_numero. Acima de
+    TETO (1 trilhão, positivo ou negativo) é ValueError.
     """
     if isinstance(valor, float):
         raise TypeError(f"{nome}: use Decimal, int ou str, não float (float erra centavo)")
@@ -71,6 +82,8 @@ def para_decimal(valor, nome):
         raise ValueError(f"{nome}: não é número: {valor!r}") from None
     if not numero.is_finite():
         raise ValueError(f"{nome}: não é número finito: {valor!r}")
+    if numero.copy_abs() > TETO:  # copy_abs não passa pelo contexto (abs estoura)
+        raise ValueError(f"{nome}: acima de 1 trilhão: {valor!r}")
     return numero
 
 

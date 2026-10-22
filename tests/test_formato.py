@@ -49,6 +49,18 @@ class TestLerNumero(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "número inválido"):
                     ler_numero(texto)
 
+    def test_virgula_e_tres_digitos_e_ambigua(self):
+        for texto in ("1,000", "12,500", "-999,999", "R$ 1,000", "1000,000", "1234,567"):
+            with self.subTest(texto=texto):
+                with self.assertRaisesRegex(ValueError, "ambíguo"):
+                    ler_numero(texto)
+        self.assertEqual(ler_numero("0,500"), Decimal("0.500"))  # zero na frente: não é mil
+        self.assertEqual(ler_numero("1.000,500"), Decimal("1000.500"))
+
+    def test_nao_texto_e_typeerror(self):
+        with self.assertRaisesRegex(TypeError, "esperado texto"):
+            ler_numero(1000)
+
 
 class TestPorcentagem(unittest.TestCase):
 
@@ -83,6 +95,17 @@ class TestParaDecimal(unittest.TestCase):
             para_decimal("abc", "receita")
         with self.assertRaisesRegex(ValueError, "finito"):
             para_decimal("NaN", "x")
+
+    def test_acima_de_um_trilhao_e_valueerror(self):
+        self.assertEqual(para_decimal("1E12", "x"), Decimal("1E12"))
+        for valor in ("1e40", 10**30, Decimal("-1E13"), "1E+999999999"):
+            with self.subTest(valor=valor):
+                with self.assertRaisesRegex(ValueError, "^receita: acima de 1 trilhão"):
+                    para_decimal(valor, "receita")
+        with self.assertRaisesRegex(ValueError, "trilhão"):
+            reais(10**30)
+        with self.assertRaisesRegex(ValueError, "trilhão"):
+            simples_nacional.valor_devido("I", 100000, "1e40", ano=2025)
 
 
 class TestNomesPublicos(unittest.TestCase):

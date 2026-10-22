@@ -1,0 +1,7 @@
+# O sdist leva o que os testes leem (montadores do MCPB e da vitrine, o
+# CHANGELOG): sem isso, quem roda os testes a partir dele recebe
+# FileNotFoundError.
+include CHANGELOG.md
+graft mcpb
+graft vitrine
+global-exclude __pycache__ *.py[cod] *.mcpb

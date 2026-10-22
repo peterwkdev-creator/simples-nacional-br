@@ -18,6 +18,10 @@ from .tabelas import (FATOR_R_MINIMO, ICMS_ISS_POR_FAIXA, LIMITE_RECEITA, SUBLIM
 # § 1º; efeitos em 01/01/2027, art. 544, III; Res. CGSN 190/2026).
 DEFASAGEM_DESDE = 2027
 
+# Receita do ano mais de 20% acima do limite ou do sublimite: o efeito é
+# no próprio mês, não no ano seguinte (LC 123, art. 3º, § 9º-A, e art. 20, § 1º-A).
+_MAIS_20 = Decimal("1.2")
+
 
 class LimiteExcedido(ValueError):
     """RBT12 acima de R$ 4,8 milhões: nenhuma alíquota do Simples se aplica."""
@@ -178,7 +182,7 @@ def _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano):
     receita_ano = para_decimal(receita_ano, "receita_ano")
     if receita_mes < 0 or receita_ano < 0:
         raise ValueError("receita_mes e receita_ano não podem ser negativas")
-    if receita_ano > LIMITE_RECEITA * Decimal("1.2"):
+    if receita_ano > LIMITE_RECEITA * _MAIS_20:
         raise LimiteExcedido(
             f"receita do ano antes do mês de R$ {reais(receita_ano)}, mais de 20% acima do "
             f"limite de R$ {reais(LIMITE_RECEITA)}: a exclusão do Simples Nacional já vale "
@@ -189,7 +193,7 @@ def _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes, receita_ano, ano):
     dentro = receita_mes - acima_sub
     rbt12 = para_decimal(rbt12, "rbt12")
     sexta = _anexo(anexo, ano)[5]
-    if receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2"):
+    if receita_ano > SUBLIMITE_ICMS_ISS * _MAIS_20:
         icms_iss = Decimal(0)
     else:
         icms_iss = _icms_iss_quinta_faixa(anexo, SUBLIMITE_ICMS_ISS, ano)
@@ -205,12 +209,12 @@ def _avisos_receita_do_ano(receita_mes, receita_ano):
     total = receita_ano + receita_mes
     receita = f"Receita do ano com este mês de R$ {reais(total)}"
     saida = []
-    if receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2"):
+    if receita_ano > SUBLIMITE_ICMS_ISS * _MAIS_20:
         saida.append(
             f"Receita do ano antes do mês de R$ {reais(receita_ano)}, mais de 20% acima do "
             f"sublimite de R$ {reais(SUBLIMITE_ICMS_ISS)}: o impedimento já vale neste mês e o "
             "valor acima não tem ICMS nem ISS (LC 123, art. 20, § 1º; Res. CGSN 140, art. 12).")
-    elif total > SUBLIMITE_ICMS_ISS * Decimal("1.2"):
+    elif total > SUBLIMITE_ICMS_ISS * _MAIS_20:
         saida.append(
             f"{receita}, mais de 20% acima do sublimite de R$ {reais(SUBLIMITE_ICMS_ISS)}: "
             "a partir do mês seguinte, ICMS e ISS saem do DAS e são recolhidos fora, pelas "
@@ -220,7 +224,7 @@ def _avisos_receita_do_ano(receita_mes, receita_ano):
             f"{receita}, até 20% acima do sublimite de R$ {reais(SUBLIMITE_ICMS_ISS)}: ICMS e "
             "ISS saem do DAS a partir de janeiro do ano seguinte (LC 123, art. 20, § 1º-A; "
             "Res. CGSN 140, art. 12); até lá, os meses seguintes também seguem o art. 24.")
-    if total > LIMITE_RECEITA * Decimal("1.2"):
+    if total > LIMITE_RECEITA * _MAIS_20:
         saida.append(
             f"{receita}, mais de 20% acima do limite de R$ {reais(LIMITE_RECEITA)}: exclusão "
             "do Simples Nacional a partir do mês seguinte (LC 123, art. 3º, § 9º).")
