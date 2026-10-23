@@ -136,6 +136,64 @@ class TestParcelas(unittest.TestCase):
             IRPJ="711.08", CSLL="621.31", COFINS="2277.36", PIS="493.74", CPP="7708.51",
             ISS="5000.00"))
 
+    def test_icms_no_das_acima_do_sublimite(self):
+        # icms_iss_no_das=True (1.7.0), Anexo I, RBT12 4.000.000, receita 100.000, 2026.
+        # Federais da 6ª faixa: efetiva (4.000.000 x 19% - 378.000) / 4.000.000 = 9,55%,
+        # repartida como em test_anexo_i_sexta_faixa_so_federal.
+        # ICMS pela 5ª faixa (Res. CGSN 140, art. 21, III, b):
+        # (4.000.000 x 14,30% - 87.300) / 4.000.000 = 12,1175% x 33,50% = 4,0593625%
+        # -> 4.059,3625. DAS = 100.000 x 13,6093625% = 13.609,3625 -> 13.609,36
+        # (ROUND_HALF_UP). Truncados somam 13.609,35; o centavo vai para a Cofins
+        # (0,005, empate com o PIS; a Cofins vem antes na linha da lei).
+        parcelas = parcelas_das("I", 4_000_000, 100_000, ano=2026, icms_iss_no_das=True)
+        self.assertEqual(parcelas, _reais(
+            IRPJ="1289.25", CSLL="955.00", COFINS="2699.79", PIS="585.41", CPP="4020.55",
+            ICMS="4059.36"))
+        self.assertEqual(sum(parcelas.values()), valor_devido(
+            "I", 4_000_000, 100_000, ano=2026, icms_iss_no_das=True))
+
+    def test_iss_no_das_acima_do_sublimite_com_teto(self):
+        # Anexo III, RBT12 4.000.000, receita 100.000, 2026, icms_iss_no_das=True.
+        # Federais da 6ª: (4.000.000 x 33% - 648.000) / 4.000.000 = 16,80% -> 16.800,00
+        # ISS pela 5ª: (4.000.000 x 21% - 125.640) / 4.000.000 = 17,859% x 33,50%
+        # = 5,982765% > 5%: ISS 5.000,00 e o excesso de 982,765 vai aos federais pela
+        # nota (*) do Anexo III (6,02 5,26 19,28 4,18 65,26).
+        # IRPJ 16.800 x 35% + 982,765 x 6,02% = 5.880 + 59,162453 = 5.939,162453
+        # CSLL 16.800 x 15% + 982,765 x 5,26% = 2.520 + 51,693439 = 2.571,693439
+        # Cofins 16.800 x 16,03% + 982,765 x 19,28% = 2.693,04 + 189,477092 = 2.882,517092
+        # PIS 16.800 x 3,47% + 982,765 x 4,18% = 582,96 + 41,079577 = 624,039577
+        # CPP 16.800 x 30,50% + 982,765 x 65,26% = 5.124 + 641,352439 = 5.765,352439
+        # DAS = 16.800 + 5.982,765 = 22.782,765 -> 22.782,77 (ROUND_HALF_UP).
+        # Truncados somam 22.782,74: os 3 centavos vão para PIS, Cofins e CSLL (maior resto).
+        parcelas = parcelas_das("III", 4_000_000, 100_000, ano=2026, icms_iss_no_das=True)
+        self.assertEqual(parcelas, _reais(
+            IRPJ="5939.16", CSLL="2571.70", COFINS="2882.52", PIS="624.04", CPP="5765.35",
+            ISS="5000.00"))
+        self.assertEqual(sum(parcelas.values()), D("22782.77"))
+
+    def test_icms_iss_no_das_soma_o_das_em_todo_ano(self):
+        # a soma das parcelas é sempre o valor_devido com a mesma opção, com IBS desde 2027
+        for ano in (2026, 2027, 2029, 2030, 2032, 2033):
+            for anexo in ("I", "II", "III", "IV", "V"):
+                with self.subTest(ano=ano, anexo=anexo):
+                    parcelas = parcelas_das(anexo, 4_000_000, 100_000, ano=ano,
+                                            icms_iss_no_das=True)
+                    self.assertEqual(sum(parcelas.values()), valor_devido(
+                        anexo, 4_000_000, 100_000, ano=ano, icms_iss_no_das=True))
+                    self.assertTrue(all(v >= 0 for v in parcelas.values()))
+                    self.assertEqual("IBS" in parcelas, ano >= 2027)
+
+    def test_icms_iss_no_das_ate_o_sublimite_nao_muda_nada(self):
+        for rbt12 in (150_000, 3_000_000, 3_600_000):
+            with self.subTest(rbt12=rbt12):
+                self.assertEqual(
+                    parcelas_das("III", rbt12, 100_000, ano=2026, icms_iss_no_das=True),
+                    parcelas_das("III", rbt12, 100_000, ano=2026))
+
+    def test_icms_iss_no_das_so_bool(self):
+        with self.assertRaises(TypeError):
+            parcelas_das("I", 4_000_000, 100_000, ano=2026, icms_iss_no_das="sim")
+
     def test_anexo_iii_quinta_faixa_abaixo_do_teto(self):
         # efetiva = (1.900.000 x 21% - 125.640) / 1.900.000 = 14,387...% < 14,92537%:
         # linha da 5ª faixa da lei, ISS = 33,50% da efetiva (abaixo de 5%)
@@ -238,6 +296,15 @@ class TestAliquotasPorTributo(unittest.TestCase):
         self.assertEqual(taxas["ISS"], D("0.05"))
         efetiva = (D(3_000_000) * D("0.21") - 125_640) / 3_000_000
         self.assertLess(abs(taxas["CPP"] - (efetiva - D("0.05")) * D("0.6526")), D("1e-20"))
+
+    def test_iss_no_teto_segue_a_ordem_das_colunas_da_lei(self):
+        # com o ISS no teto, a ordem é a da linha da tabela (ISS antes do IBS),
+        # a mesma das outras faixas
+        for ano in (2026, 2027, 2029):
+            for anexo in ("III", "IV"):
+                with self.subTest(ano=ano, anexo=anexo):
+                    self.assertEqual(list(aliquotas_por_tributo(anexo, 3_000_000, ano=ano)),
+                                     list(aliquotas_por_tributo(anexo, 1_500_000, ano=ano)))
 
     def test_entradas_como_nos_calculos(self):
         with self.assertRaises(TypeError):

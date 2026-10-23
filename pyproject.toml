@@ -52,7 +52,8 @@ Changelog = "https://github.com/peterwkdev-creator/simples-nacional-br/blob/main
 packages = ["simples_nacional"]
 
 [tool.setuptools.package-data]
-simples_nacional = ["cnae_subclasses.tsv"]
+# py.typed (PEP 561): o mypy e o pyright leem as anotações do pacote instalado
+simples_nacional = ["cnae_subclasses.tsv", "py.typed"]
 
 [tool.setuptools.dynamic]
 version = { attr = "simples_nacional.__version__" }

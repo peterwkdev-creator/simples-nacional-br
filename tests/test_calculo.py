@@ -770,7 +770,7 @@ class TestMesQuePassaDoSublimite(unittest.TestCase):
         # LC 123, art. 20, §§ 1º e 1º-A, e art. 3º, §§ 9º e 9º-A: excesso de até
         # 20% vale no ano seguinte; de mais de 20%, no mês seguinte.
         # Sublimite + 20% = 4.320.000; limite + 20% = 5.760.000.
-        from simples_nacional.calculo import _avisos_receita_do_ano as av
+        from simples_nacional import avisos_receita_do_ano as av
         D = Decimal
         self.assertEqual(av(D("100000"), D("3500000")), [])
         self.assertEqual(av(D("0"), D("3600000")), [])
@@ -786,6 +786,15 @@ class TestMesQuePassaDoSublimite(unittest.TestCase):
         self.assertIn("mais de 20% acima do limite", av(D("10000.01"), D("5750000"))[1])
         self.assertIn("a partir do mês seguinte (LC 123, art. 3º, § 9º)",
                       av(D("10000.01"), D("5750000"))[1])
+
+    def test_avisos_receita_do_ano_publica_confere_entradas(self):
+        # pública desde a 1.7.0: aceita int e texto, como o resto da API
+        from simples_nacional import avisos_receita_do_ano as av
+        self.assertEqual(av(20000, "4300000"), av(Decimal("20000"), Decimal("4300000")))
+        with self.assertRaises(ValueError):
+            av(-1, 3600000)
+        with self.assertRaises(TypeError):
+            av(1.5, 3600000)
 
     def test_so_ate_2026_e_entradas(self):
         for ano in (2027, 2033):

@@ -4,12 +4,17 @@ Públicos para quem integra a biblioteca não reescrever a regra do ponto
 de milhar.
 """
 
+from __future__ import annotations
+
 import functools
 import re
 from decimal import (Context, Decimal, DivisionByZero, InvalidOperation, Overflow,
                      ROUND_HALF_EVEN, ROUND_HALF_UP, localcontext)
+from typing import Union
 
 CENTAVO = Decimal("0.01")
+# O que as funções aceitam como número: Decimal, int ou texto (float não).
+Numero = Union[Decimal, int, str]
 # Nenhuma empresa do Simples chega perto de R$ 1 trilhão; 1E+999999999 é
 # número válido e estouraria o Decimal no meio da conta.
 TETO = Decimal("1E12")
@@ -37,7 +42,7 @@ _VIRGULA_E_TRES = re.compile(r"-?[1-9]\d*,\d{3}")     # 1,000: mil ou um?
 _REAIS = re.compile(r"R\$\s*")                        # R$ 1.000,50, como o Excel copia
 
 
-def ler_numero(texto):
+def ler_numero(texto: str) -> Decimal:
     """Aceita 4500000, 4500000.00, 1000,50, 1.000,50 e 360.000 (milhar), com
     ou sem "R$" na frente e espaço nas pontas.
 
@@ -64,7 +69,7 @@ def ler_numero(texto):
     return Decimal(normal)
 
 
-def para_decimal(valor, nome):
+def para_decimal(valor: Numero, nome: str) -> Decimal:
     """Decimal exato a partir de Decimal, int ou str; float e bool são recusados.
 
     `nome` abre a mensagem de erro (`rbt12: não é número: 'abc'`). O texto se
@@ -88,14 +93,14 @@ def para_decimal(valor, nome):
 
 
 @_contexto_fixo
-def reais(valor):
+def reais(valor: Numero) -> str:
     """Formato brasileiro: 4800000 -> '4.800.000,00'."""
     texto = f"{para_decimal(valor, 'valor').quantize(CENTAVO, ROUND_HALF_UP):,.2f}"
     return texto.replace(",", "_").replace(".", ",").replace("_", ".")
 
 
 @_contexto_fixo
-def porcentagem(fracao):
+def porcentagem(fracao: Numero) -> str:
     """Fração em porcentagem com quatro casas: Decimal("0.0565") -> '5,6500%'."""
     fracao = para_decimal(fracao, "fracao")
     texto = f"{(fracao * 100).quantize(Decimal('0.0001'), ROUND_HALF_UP)}"

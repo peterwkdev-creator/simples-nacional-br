@@ -220,3 +220,42 @@ class TestTabelaPorAno(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSoLeitura(unittest.TestCase):
+    """Desde a 1.7.0 as tabelas são MappingProxyType: nenhum programa troca a lei sem querer."""
+
+    def _tabelas(self):
+        from simples_nacional import ANEXOS, ANEXOS_2027_2028, ICMS_ISS_POR_FAIXA, vigencia
+        return {"ANEXOS": ANEXOS, "ANEXOS_2027_2028": ANEXOS_2027_2028,
+                "ICMS_ISS_POR_FAIXA": ICMS_ISS_POR_FAIXA,
+                "vigencia(2026).anexos": vigencia(2026).anexos,
+                "vigencia(2027).anexos": vigencia(2027).anexos,
+                "vigencia(2029).anexos": vigencia(2029).anexos}
+
+    def test_atribuir_da_type_error(self):
+        for nome, tabela in self._tabelas().items():
+            with self.subTest(nome):
+                with self.assertRaises(TypeError):
+                    tabela["I"] = ()
+                with self.assertRaises(TypeError):
+                    tabela["VI"] = ()
+                with self.assertRaises(TypeError):
+                    del tabela["I"]
+
+    def test_faixas_sao_tuplas(self):
+        # o que está dentro também não muda: tupla de Faixa (NamedTuple)
+        for nome, tabela in self._tabelas().items():
+            with self.subTest(nome):
+                for valor in tabela.values():
+                    self.assertIsInstance(valor, tuple)
+
+    def test_leitura_e_iteracao_como_dict(self):
+        from simples_nacional import ANEXOS, ANEXOS_2027_2028, ICMS_ISS_POR_FAIXA
+        for tabela in (ANEXOS, ANEXOS_2027_2028, ICMS_ISS_POR_FAIXA):
+            self.assertEqual(list(tabela), ["I", "II", "III", "IV", "V"])
+            self.assertEqual(dict(tabela.items()), dict(tabela))
+        # LC 214, Anexo XVIII, 2027 e 2028: 6ª faixa do Anexo I a 18,90%
+        self.assertEqual(ANEXOS_2027_2028["I"][5].aliquota, Decimal("18.90") / 100)
+        self.assertEqual(ANEXOS["I"][5].aliquota, Decimal("19.00") / 100)
+        self.assertEqual(len(ICMS_ISS_POR_FAIXA["I"]), 5)

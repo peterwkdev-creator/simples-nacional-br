@@ -237,7 +237,8 @@ def _ano(argumentos):
     return ano
 
 
-def _anexo(argumentos):
+def _anexo_dos_argumentos(argumentos):
+    """O anexo pedido na chamada da ferramenta, conferido contra o esquema (I a V)."""
     anexo = argumentos["anexo"]
     if anexo not in ANEXO["enum"]:
         raise ErroDeEntrada(f"anexo: um de I, II, III, IV ou V, não {anexo!r}")
@@ -250,7 +251,7 @@ def _texto(valor):
 
 
 def calcular_das(a):
-    anexo, ano = _anexo(a), _ano(a)
+    anexo, ano = _anexo_dos_argumentos(a), _ano(a)
     rbt12, receita = _numero(a, "rbt12"), _numero(a, "receita_mes")
     icms_iss = a.get("icms_iss_no_das", False)
     f = faixa(anexo, rbt12, ano=ano)
@@ -269,7 +270,7 @@ def calcular_das(a):
 
 
 def calcular_inicio(a):
-    anexo, ano = _anexo(a), _ano(a)
+    anexo, ano = _anexo_dos_argumentos(a), _ano(a)
     receitas = a["receitas"]
     if not isinstance(receitas, list) or not receitas:
         raise ErroDeEntrada("receitas: lista com a receita de cada mês, do 1º de atividade "
@@ -308,7 +309,7 @@ def calcular_inicio(a):
 
 
 def repartir_das(a):
-    anexo, ano = _anexo(a), _ano(a)
+    anexo, ano = _anexo_dos_argumentos(a), _ano(a)
     rbt12, receita = _numero(a, "rbt12"), _numero(a, "receita_mes")
     parcelas = parcelas_das(anexo, rbt12, receita, ano=ano)
     fracoes = aliquotas_por_tributo(anexo, rbt12, ano=ano)

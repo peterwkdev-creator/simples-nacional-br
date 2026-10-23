@@ -21,8 +21,11 @@ conferido em 10/10/2026:
 https://www2.camara.leg.br/legin/fed/leicom/2006/leicomplementar-123-14-dezembro-2006-548099-normaatualizada-pl.html
 """
 
+from __future__ import annotations
+
 from decimal import Decimal
-from typing import NamedTuple
+from types import MappingProxyType
+from typing import Mapping, NamedTuple, Tuple
 
 from .tabelas_reparticao import PARTILHA_2027_2028, PARTILHA_ATE_2026, PARTILHA_DESDE_2029
 
@@ -34,16 +37,19 @@ class Faixa(NamedTuple):
     parcela_deduzir: Decimal
 
 
-def _anexo(*linhas):
+def _montar_faixas(*linhas):
+    """Linhas (teto, nominal em %, parcela a deduzir) da lei -> Faixa numeradas de 1 a 6."""
     return tuple(
         Faixa(n, Decimal(teto), Decimal(aliquota) / 100, Decimal(pd))
         for n, (teto, aliquota, pd) in enumerate(linhas, 1)
     )
 
 
-ANEXOS = {
+# Só leitura (MappingProxyType): ANEXOS["I"] = ... é TypeError, para nenhum
+# programa trocar a tabela da lei sem querer. Ler e iterar seguem como num dict.
+ANEXOS: Mapping[str, Tuple[Faixa, ...]] = MappingProxyType({
     # Anexo I - Comércio
-    "I": _anexo(
+    "I": _montar_faixas(
         ("180000.00", "4.00", "0"),
         ("360000.00", "7.30", "5940.00"),
         ("720000.00", "9.50", "13860.00"),
@@ -52,7 +58,7 @@ ANEXOS = {
         ("4800000.00", "19.00", "378000.00"),
     ),
     # Anexo II - Indústria
-    "II": _anexo(
+    "II": _montar_faixas(
         ("180000.00", "4.50", "0"),
         ("360000.00", "7.80", "5940.00"),
         ("720000.00", "10.00", "13860.00"),
@@ -61,7 +67,7 @@ ANEXOS = {
         ("4800000.00", "30.00", "720000.00"),
     ),
     # Anexo III - locação de bens móveis e serviços fora do art. 18, § 5º-C
-    "III": _anexo(
+    "III": _montar_faixas(
         ("180000.00", "6.00", "0"),
         ("360000.00", "11.20", "9360.00"),
         ("720000.00", "13.50", "17640.00"),
@@ -70,7 +76,7 @@ ANEXOS = {
         ("4800000.00", "33.00", "648000.00"),
     ),
     # Anexo IV - serviços do art. 18, § 5º-C
-    "IV": _anexo(
+    "IV": _montar_faixas(
         ("180000.00", "4.50", "0"),
         ("360000.00", "9.00", "8100.00"),
         ("720000.00", "10.20", "12420.00"),
@@ -79,7 +85,7 @@ ANEXOS = {
         ("4800000.00", "33.00", "828000.00"),
     ),
     # Anexo V - serviços do art. 18, § 5º-I
-    "V": _anexo(
+    "V": _montar_faixas(
         ("180000.00", "15.50", "0"),
         ("360000.00", "18.00", "4500.00"),
         ("720000.00", "19.50", "9900.00"),
@@ -87,7 +93,7 @@ ANEXOS = {
         ("3600000.00", "23.00", "62100.00"),
         ("4800000.00", "30.50", "540000.00"),
     ),
-}
+})
 
 # LC 123, art. 3º, II (redação da LC 155/2016): EPP até R$ 4,8 milhões.
 # Texto atualizado da LC 123 na Câmara (URL no cabeçalho), 10/10/2026.
@@ -109,10 +115,10 @@ def _icms_iss(linha):
 # tirada da tabela "Percentual de Repartição dos Tributos" de cada anexo em
 # tabelas_reparticao.py, que tem a fonte; os números ficam só lá. Na 6ª
 # faixa é 0%. Vale até 2026.
-ICMS_ISS_POR_FAIXA = {
+ICMS_ISS_POR_FAIXA: Mapping[str, Tuple[Decimal, ...]] = MappingProxyType({
     anexo: tuple(_icms_iss(linha) for linha in linhas[:5])
     for anexo, linhas in PARTILHA_ATE_2026.items()
-}
+})
 
 # Nota (*) dos Anexos III e IV: o percentual efetivo do ISS vai até 5%, e a
 # diferença passa aos tributos federais da mesma faixa (Res. CGSN 140,
@@ -128,7 +134,7 @@ TETO_ISS = Decimal("0.05")
 # parte, para acusar qualquer troca.
 
 
-def quinta_faixa_icms_iss_ibs(anexo, *, ano):
+def quinta_faixa_icms_iss_ibs(anexo: str, *, ano: int) -> Tuple[Decimal, Decimal]:
     """(ICMS ou ISS, IBS) da repartição da 5ª faixa no ano-calendário, em fração.
 
     Até 2026, a 5ª faixa de ICMS_ISS_POR_FAIXA (I 33,50%, II 32,00%, III
@@ -159,20 +165,20 @@ FATOR_R_MINIMO = Decimal("0.28")
 # Texto atualizado da LC 214 na Câmara (URL no cabeçalho), 10/10/2026.
 _SEXTA_FAIXA_2027 = {"I": "18.90", "II": "29.90", "III": "32.90", "IV": "32.90", "V": "30.40"}
 
-ANEXOS_2027_2028 = {
+ANEXOS_2027_2028: Mapping[str, Tuple[Faixa, ...]] = MappingProxyType({
     anexo: faixas[:5] + (faixas[5]._replace(aliquota=Decimal(_SEXTA_FAIXA_2027[anexo]) / 100),)
     for anexo, faixas in ANEXOS.items()
-}
+})
 
 PRIMEIRO_ANO = 2018  # LC 155/2016: a tabela de ANEXOS vale desde 01/01/2018
 
 
 class Vigencia(NamedTuple):
-    anexos: dict
+    anexos: Mapping[str, Tuple[Faixa, ...]]  # ANEXOS ou ANEXOS_2027_2028, só leitura
     fonte: str
 
 
-def vigencia(ano):
+def vigencia(ano: int) -> Vigencia:
     """Tabela e fonte legal do ano-calendário de apuração."""
     if isinstance(ano, bool) or not isinstance(ano, int):
         raise TypeError(f"ano: esperado int (ano-calendário de apuração), veio {type(ano).__name__}")

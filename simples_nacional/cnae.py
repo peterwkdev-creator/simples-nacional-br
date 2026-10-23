@@ -11,18 +11,21 @@ datas em cnae_dados.py.
     python -m simples_nacional.cnae 7112000 --ano 2026 --folha12 300000 --rbt12 1000000
 """
 
+from __future__ import annotations
+
 import argparse
 import re
 import sys
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
-from typing import NamedTuple
+from decimal import Decimal
+from typing import Dict, NamedTuple, Optional
 
 from . import cnae_dados
 from .argumentos import Argumentos, nome_do_comando
 from .calculo import anexo_por_fator_r, fator_r
-from .formato import ler_numero, porcentagem
+from .formato import Numero, ler_numero, porcentagem
 from .tabelas import vigencia
 
 IMPEDITIVA = "impeditiva"
@@ -57,14 +60,14 @@ class Enquadramento(NamedTuple):
     subclasse: str
     denominacao: str
     situacao: str
-    anexo: object  # "I" a "V"; None se impeditiva, ambígua, sem classificação ou Fator R sem folha
+    anexo: Optional[str]  # "I" a "V"; None se impeditiva, ambígua, sem classificação ou Fator R sem folha
     fundamento: str
     observacao: str
-    fator_r: object = None  # Decimal, só se a folha foi informada num caso de Fator R
+    fator_r: Optional[Decimal] = None  # Decimal, só se a folha foi informada num caso de Fator R
 
 
 @lru_cache(maxsize=None)
-def subclasses():
+def subclasses() -> Dict[str, str]:
     """Código -> nome oficial das 1.332 subclasses do IBGE."""
     caminho = Path(__file__).with_name("cnae_subclasses.tsv")
     with open(caminho, encoding="utf-8") as arquivo:
@@ -86,7 +89,7 @@ def _tabela():
 TABELA = _tabela()
 
 
-def normalizar(texto):
+def normalizar(texto: str) -> str:
     """'6920601', '6920-6/01' ou '6920.6-01' -> '6920-6/01'."""
     digitos = re.sub(r"[\s./-]", "", str(texto))
     if not DIGITOS.fullmatch(digitos):
@@ -94,7 +97,8 @@ def normalizar(texto):
     return f"{digitos[:4]}-{digitos[4]}/{digitos[5:]}"
 
 
-def enquadrar(cnae, *, ano, folha12=None, rbt12=None):
+def enquadrar(cnae: str, *, ano: int, folha12: Optional[Numero] = None,
+              rbt12: Optional[Numero] = None) -> Enquadramento:
     """Situação da subclasse no Simples no ano-calendário `ano`; com folha12 e
     rbt12, resolve o Fator R.
 

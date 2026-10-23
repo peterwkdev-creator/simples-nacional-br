@@ -9,7 +9,6 @@ from . import __version__
 from .argumentos import Argumentos, nome_do_comando
 from .calculo import (
     LimiteExcedido,
-    _avisos_receita_do_ano,
     _meses,
     _parcelas_acima_do_sublimite,
     _rbt12_primeiros_meses,
@@ -18,6 +17,7 @@ from .calculo import (
     anexo_por_fator_r,
     avisos,
     avisos_inicio_atividade,
+    avisos_receita_do_ano,
     faixa,
     fator_r,
     valor_devido,
@@ -77,7 +77,8 @@ def _mes(texto):
     return int(texto)
 
 
-def main(argv=None):
+def _analisador():
+    """As opções da linha de comando, com a ajuda em português."""
     p = Argumentos(
         prog=nome_do_comando("simples-nacional", "simples_nacional"),
         description="Alíquota efetiva e valor do mês no Simples Nacional "
@@ -115,7 +116,11 @@ def main(argv=None):
                    help="ano-calendário do mês de apuração (padrão: o ano corrente); "
                         "a tabela de 2027 e 2028 tem a 6ª faixa 0,1 ponto menor")
     p.add_argument("--version", action="version", version=f"simples-nacional {__version__}")
-    a = p.parse_args(argv)
+    return p
+
+
+def _conferir_opcoes(p, a):
+    """Combinações de opções que não valem juntas: erro de uso (código 2)."""
     if a.receitas is not None:
         if a.rbt12 is not None or a.receita_mes is not None:
             p.error("--receitas substitui --rbt12 e --receita-mes: use um ou outro")
@@ -135,115 +140,173 @@ def main(argv=None):
         p.error("--receita-ano já decide o ICMS e o ISS pela receita do ano: "
                 "não use --icms-iss-no-das junto")
 
-    linhas = []
-    anexo = a.anexo.upper()
-    plano = None
+
+class _Conta:
+    """O que a conta do mês deixa para as linhas da saída."""
+
+    def __init__(self, anexo):
+        self.anexo = anexo
+        self.linhas = []
+        self.plano = None
+        self.parcelas = None
+        self.limites = []
+
+
+def _anexo_pelo_fator_r(p, a, c):
+    """--anexo fator-r: III ou V pela folha, com o planejamento quando cabe."""
+    if a.receitas is not None:
+        p.error("--anexo fator-r com --receitas não é calculado: informe o anexo (III ou V)")
+    if a.folha12 is None:
+        p.error("--anexo fator-r exige --folha12")
+    c.anexo = anexo_por_fator_r(a.folha12, a.rbt12)
+    c.linhas.append(
+        f"Fator R: {_fator_r_truncado(fator_r(a.folha12, a.rbt12))} "
+        f"-> Anexo {c.anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
+    if a.receita_ano is None:
+        c.plano = planejar_fator_r(a.folha12, a.rbt12, a.receita_mes, ano=a.ano,
+                                   icms_iss_no_das=a.icms_iss_no_das)
+
+
+def _conta_com_rbt12(a, c):
+    """--rbt12 e --receita-mes; com --receita-ano, o mês que passa do sublimite."""
+    c.rbt12, c.receita_mes = a.rbt12, a.receita_mes
+    c.f = faixa(c.anexo, c.rbt12, ano=a.ano)
+    c.federal = aliquota_efetiva(c.anexo, c.rbt12, ano=a.ano)
+    c.efetiva = aliquota_efetiva(c.anexo, c.rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)
+    if a.receita_ano is None:
+        c.valor = valor_devido(c.anexo, c.rbt12, c.receita_mes, ano=a.ano,
+                               icms_iss_no_das=a.icms_iss_no_das)
+    else:
+        c.valor = valor_devido_acima_do_sublimite(c.anexo, c.rbt12, c.receita_mes,
+                                                  a.receita_ano, ano=a.ano)
+        c.parcelas = _parcelas_acima_do_sublimite(c.anexo, c.rbt12, c.receita_mes,
+                                                  a.receita_ano, a.ano)
+
+
+def _limites_inicio_atividade(a):
+    """Avisos do limite e do sublimite no ano de início de atividade."""
+    if a.mes_inicio is not None:
+        return avisos_inicio_atividade(a.receitas, a.mes_inicio, ano=a.ano)
+    if sum(a.receitas[:12]) > SUBLIMITE_ICMS_ISS / 12 * len(a.receitas[:12]):
+        return [
+            f"R$ {reais(sum(a.receitas[:12]))} em {_meses(len(a.receitas[:12]))} passa "
+            f"de R$ {reais(SUBLIMITE_ICMS_ISS / 12)} por mês. No ano de início de "
+            f"atividade, o limite é R$ {reais(LIMITE_RECEITA / 12)} e o sublimite "
+            f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)}, vezes os meses do início até "
+            "dezembro (LC 123, art. 3º, §§ 2º e 11): informe --mes-inicio para "
+            "conferir."]
+    return []
+
+
+def _conta_inicio_atividade(a, c):
+    """--receitas: os primeiros meses de atividade (Res. CGSN 140, art. 22)."""
+    c.rbt12, regra = _rbt12_primeiros_meses(a.receitas, a.ano)
+    c.receita_mes = a.receitas[-1]
+    c.f = faixa(c.anexo, c.rbt12 or 1, ano=a.ano)  # sem RBT12: a 1ª faixa
+    c.efetiva = c.federal = aliquota_inicio_atividade(c.anexo, a.receitas, ano=a.ano)
+    c.valor = valor_devido_inicio_atividade(c.anexo, a.receitas, ano=a.ano)
+    c.linhas.append(f"Início de atividade, {len(a.receitas)}º mês de atividade: {regra}"
+                    + (f" = R$ {reais(c.rbt12)}" if c.rbt12 is not None else ""))
+    c.limites = _limites_inicio_atividade(a)
+
+
+def _calcular(p, a):
+    """A conta do mês; erro de entrada sobe como ValueError, TypeError ou LimiteExcedido."""
+    c = _Conta(a.anexo.upper())
+    c.linhas.append(f"Tabela do ano-calendário {a.ano}: {vigencia(a.ano).fonte} "
+                    "(para outro ano de apuração, use --ano)")
+    if c.anexo != "FATOR-R" and a.folha12 is not None:
+        p.error("--folha12 só vale com --anexo fator-r")
+    if c.anexo == "FATOR-R":
+        _anexo_pelo_fator_r(p, a, c)
+    if a.receitas is None:
+        _conta_com_rbt12(a, c)
+    else:
+        _conta_inicio_atividade(a, c)
+    return c
+
+
+def _linhas_da_aliquota(a, c):
+    """A faixa e a alíquota efetiva, com a fórmula."""
+    f, efetiva, federal = c.f, c.efetiva, c.federal
+    return [
+        f"Anexo {c.anexo}, {f.numero}ª faixa (até R$ {reais(f.teto)}): "
+        f"alíquota nominal {porcentagem(f.aliquota)}, "
+        f"parcela a deduzir R$ {reais(f.parcela_deduzir)}",
+        f"Alíquota efetiva: {porcentagem(efetiva)} "
+        + ("= nominal da 1ª faixa" if c.rbt12 is None
+           else "= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if efetiva == federal
+           else f"= {porcentagem(federal)} da 6ª faixa, só federal, + "
+                f"{porcentagem(efetiva - federal)} de {_quinta_faixa(a.ano)}"),
+    ]
+
+
+def _linhas_do_valor(a, c):
+    """O valor do mês; com --receita-ano, cada parcela do art. 24."""
+    if a.receita_ano is None:
+        return [f"Valor do mês: R$ {reais(c.valor)} "
+                f"= R$ {reais(c.receita_mes)} × {_efetiva_da_conta(c.efetiva, c.receita_mes, c.valor)}"]
+    linhas = [f"Receita do ano antes do mês: R$ {reais(a.receita_ano)}; o mês se divide "
+              "pelo sublimite e pelo limite (Res. CGSN 140, art. 24):"]
+    icms_iss = ("" if a.receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2")
+                else " + ICMS ou ISS pela 5ª faixa em R$ 3.600.000,00")
+    for (parcela, aliquota), nome in zip(c.parcelas, (
+            "dentro do sublimite, pela alíquota efetiva (§ 5º)",
+            f"acima do sublimite: federais pelo art. 21{icms_iss} (inciso I; § 6º)",
+            "acima de R$ 4.800.000,00: federais da 6ª faixa em R$ 4.800.000,00"
+            f"{icms_iss} (inciso II; § 7º)")):
+        if parcela:
+            linhas.append(f"  R$ {reais(parcela)} {nome}: × {porcentagem(aliquota)}")
+    linhas.append(f"Valor do mês: R$ {reais(c.valor)} = soma das parcelas, "
+                  "arredondada no centavo")
+    return linhas
+
+
+def _linhas_do_plano(plano):
+    """--anexo fator-r: a folha que falta para 28% e o valor nos dois anexos."""
+    if plano is None:
+        return []
+    diferenca = plano.diferenca_das
+    return [
+        f"Folha de 12 meses para 28%: R$ {reais(plano.folha_minima)}; "
+        + ("a de hoje já chega" if plano.anexo == "III"
+           else f"faltam R$ {reais(plano.folha_que_falta)}"),
+        f"Valor do mês no Anexo V: R$ {reais(plano.das_anexo_v)}; no Anexo III: "
+        f"R$ {reais(plano.das_anexo_iii)}; "
+        + (f"o III sai R$ {reais(diferenca)} mais barato" if diferenca > 0
+           else f"o V sai R$ {reais(-diferenca)} mais barato" if diferenca < 0
+           else "o mesmo valor"),
+        "Aviso: a diferença é só no DAS. O pró-labore a mais paga a contribuição "
+        "previdenciária do sócio e pode pagar IRPF, que dependem da pessoa: nada "
+        "disso está descontado.",
+    ]
+
+
+def _linhas_de_aviso(a, c):
+    """Avisos do sublimite, do limite e do início de atividade."""
+    textos = []
+    if c.rbt12 is not None and a.receita_ano is not None:
+        textos = avisos_receita_do_ano(c.receita_mes, a.receita_ano)
+    elif c.rbt12 is not None:
+        textos = avisos(c.rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)
+    if a.receitas is not None:
+        textos = textos + c.limites
+    return [f"Aviso: {texto}" for texto in textos]
+
+
+def main(argv=None):
+    p = _analisador()
+    a = p.parse_args(argv)
+    _conferir_opcoes(p, a)
     try:
-        linhas.append(f"Tabela do ano-calendário {a.ano}: {vigencia(a.ano).fonte} "
-                      "(para outro ano de apuração, use --ano)")
-        if anexo != "FATOR-R" and a.folha12 is not None:
-            p.error("--folha12 só vale com --anexo fator-r")
-        if anexo == "FATOR-R":
-            if a.receitas is not None:
-                p.error("--anexo fator-r com --receitas não é calculado: informe o anexo (III ou V)")
-            if a.folha12 is None:
-                p.error("--anexo fator-r exige --folha12")
-            anexo = anexo_por_fator_r(a.folha12, a.rbt12)
-            linhas.append(
-                f"Fator R: {_fator_r_truncado(fator_r(a.folha12, a.rbt12))} "
-                f"-> Anexo {anexo} (LC 123, art. 18, § 5º-J: III se >= 28%)")
-            if a.receita_ano is None:
-                plano = planejar_fator_r(a.folha12, a.rbt12, a.receita_mes, ano=a.ano,
-                                         icms_iss_no_das=a.icms_iss_no_das)
-        if a.receitas is None:
-            rbt12, receita_mes = a.rbt12, a.receita_mes
-            f = faixa(anexo, rbt12, ano=a.ano)
-            federal = aliquota_efetiva(anexo, rbt12, ano=a.ano)
-            efetiva = aliquota_efetiva(anexo, rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)
-            if a.receita_ano is None:
-                valor = valor_devido(anexo, rbt12, receita_mes, ano=a.ano,
-                                     icms_iss_no_das=a.icms_iss_no_das)
-            else:
-                valor = valor_devido_acima_do_sublimite(anexo, rbt12, receita_mes,
-                                                        a.receita_ano, ano=a.ano)
-                parcelas = _parcelas_acima_do_sublimite(anexo, rbt12, receita_mes,
-                                                        a.receita_ano, a.ano)
-        else:
-            rbt12, regra = _rbt12_primeiros_meses(a.receitas, a.ano)
-            receita_mes = a.receitas[-1]
-            f = faixa(anexo, rbt12 or 1, ano=a.ano)  # sem RBT12: a 1ª faixa
-            efetiva = federal = aliquota_inicio_atividade(anexo, a.receitas, ano=a.ano)
-            valor = valor_devido_inicio_atividade(anexo, a.receitas, ano=a.ano)
-            linhas.append(f"Início de atividade, {len(a.receitas)}º mês de atividade: {regra}"
-                          + (f" = R$ {reais(rbt12)}" if rbt12 is not None else ""))
-            if a.mes_inicio is not None:
-                limites = avisos_inicio_atividade(a.receitas, a.mes_inicio, ano=a.ano)
-            elif sum(a.receitas[:12]) > SUBLIMITE_ICMS_ISS / 12 * len(a.receitas[:12]):
-                limites = [
-                    f"R$ {reais(sum(a.receitas[:12]))} em {_meses(len(a.receitas[:12]))} passa "
-                    f"de R$ {reais(SUBLIMITE_ICMS_ISS / 12)} por mês. No ano de início de "
-                    f"atividade, o limite é R$ {reais(LIMITE_RECEITA / 12)} e o sublimite "
-                    f"R$ {reais(SUBLIMITE_ICMS_ISS / 12)}, vezes os meses do início até "
-                    "dezembro (LC 123, art. 3º, §§ 2º e 11): informe --mes-inicio para "
-                    "conferir."]
-            else:
-                limites = []
+        c = _calcular(p, a)
     except LimiteExcedido as erro:
         print(f"erro: {erro}", file=sys.stderr)
         return 2
     except (ValueError, TypeError) as erro:
         p.error(str(erro))
-
-    linhas += [
-        f"Anexo {anexo}, {f.numero}ª faixa (até R$ {reais(f.teto)}): "
-        f"alíquota nominal {porcentagem(f.aliquota)}, "
-        f"parcela a deduzir R$ {reais(f.parcela_deduzir)}",
-        f"Alíquota efetiva: {porcentagem(efetiva)} "
-        + ("= nominal da 1ª faixa" if rbt12 is None
-           else "= (RBT12 × Aliq - PD) / RBT12 (LC 123, art. 18, § 1º-A)" if efetiva == federal
-           else f"= {porcentagem(federal)} da 6ª faixa, só federal, + "
-                f"{porcentagem(efetiva - federal)} de {_quinta_faixa(a.ano)}"),
-    ]
-    if a.receita_ano is None:
-        linhas.append(f"Valor do mês: R$ {reais(valor)} "
-                      f"= R$ {reais(receita_mes)} × {_efetiva_da_conta(efetiva, receita_mes, valor)}")
-    else:
-        linhas.append(f"Receita do ano antes do mês: R$ {reais(a.receita_ano)}; o mês se divide "
-                      "pelo sublimite e pelo limite (Res. CGSN 140, art. 24):")
-        icms_iss = ("" if a.receita_ano > SUBLIMITE_ICMS_ISS * Decimal("1.2")
-                    else " + ICMS ou ISS pela 5ª faixa em R$ 3.600.000,00")
-        for (parcela, aliquota), nome in zip(parcelas, (
-                "dentro do sublimite, pela alíquota efetiva (§ 5º)",
-                f"acima do sublimite: federais pelo art. 21{icms_iss} (inciso I; § 6º)",
-                "acima de R$ 4.800.000,00: federais da 6ª faixa em R$ 4.800.000,00"
-                f"{icms_iss} (inciso II; § 7º)")):
-            if parcela:
-                linhas.append(f"  R$ {reais(parcela)} {nome}: × {porcentagem(aliquota)}")
-        linhas.append(f"Valor do mês: R$ {reais(valor)} = soma das parcelas, "
-                      "arredondada no centavo")
-    if plano is not None:
-        diferenca = plano.diferenca_das
-        linhas += [
-            f"Folha de 12 meses para 28%: R$ {reais(plano.folha_minima)}; "
-            + ("a de hoje já chega" if plano.anexo == "III"
-               else f"faltam R$ {reais(plano.folha_que_falta)}"),
-            f"Valor do mês no Anexo V: R$ {reais(plano.das_anexo_v)}; no Anexo III: "
-            f"R$ {reais(plano.das_anexo_iii)}; "
-            + (f"o III sai R$ {reais(diferenca)} mais barato" if diferenca > 0
-               else f"o V sai R$ {reais(-diferenca)} mais barato" if diferenca < 0
-               else "o mesmo valor"),
-            "Aviso: a diferença é só no DAS. O pró-labore a mais paga a contribuição "
-            "previdenciária do sócio e pode pagar IRPF, que dependem da pessoa: nada "
-            "disso está descontado.",
-        ]
-    if rbt12 is not None and a.receita_ano is not None:
-        linhas += [f"Aviso: {texto}"
-                   for texto in _avisos_receita_do_ano(receita_mes, a.receita_ano)]
-    elif rbt12 is not None:
-        linhas += [f"Aviso: {texto}"
-                   for texto in avisos(rbt12, ano=a.ano, icms_iss_no_das=a.icms_iss_no_das)]
-    if a.receitas is not None:
-        linhas += [f"Aviso: {texto}" for texto in limites]
+    linhas = (c.linhas + _linhas_da_aliquota(a, c) + _linhas_do_valor(a, c)
+              + _linhas_do_plano(c.plano) + _linhas_de_aviso(a, c))
     linhas.append("Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o contador.")
     print("\n".join(linhas))
     return 0

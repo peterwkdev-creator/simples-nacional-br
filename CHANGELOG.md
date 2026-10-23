@@ -3,6 +3,38 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.7.0 — 22/10
+
+- `parcelas_das` aceita `icms_iss_no_das=True`, com o mesmo sentido de
+  `valor_devido`: com RBT12 acima do sublimite de R$ 3,6 milhões, ICMS ou
+  ISS (e o IBS desde 2027; de 2033 em diante, só o IBS) seguem no DAS pela
+  5ª faixa e entram como parcelas, e a soma bate com o
+  `valor_devido(..., icms_iss_no_das=True)`. O ISS acima do teto da nota
+  (*) dos Anexos III e IV fica no teto e o excesso vai aos outros tributos
+  pelos percentuais da nota. Antes, a repartição só existia para o DAS
+  só federal. Até o sublimite a opção não muda nada.
+- `avisos_receita_do_ano(receita_mes, receita_ano)` é pública: os avisos
+  do efeito do sublimite e do limite nos meses seguintes, que acompanham
+  `valor_devido_acima_do_sublimite`. Aceita Decimal, int ou texto, como o
+  resto da API. Antes, só a linha de comando os mostrava (função interna).
+- `ANEXOS`, `ANEXOS_2027_2028`, `ICMS_ISS_POR_FAIXA` e `Vigencia.anexos`
+  são só leitura (`types.MappingProxyType`): `ANEXOS["I"] = ...` é
+  `TypeError`. Antes eram `dict` e um programa podia trocar a tabela da
+  lei sem querer. Ler, iterar e comparar seguem como num `dict`; para uma
+  cópia editável, `dict(ANEXOS)`. `copy.deepcopy` e `pickle` das tabelas
+  (e de `vigencia(ano)`) deixam de funcionar: use `dict(...)` antes.
+- Anotações de tipo na API pública e `py.typed` no pacote (PEP 561): o
+  mypy e o pyright passam a conferir as chamadas. `Enquadramento.anexo` é
+  `Optional[str]` e `Enquadramento.fator_r`, `Optional[Decimal]` (antes,
+  `object`). Número de entrada é `formato.Numero` (Decimal, int ou str).
+- `aliquotas_por_tributo` e `parcelas_das` na 5ª faixa dos Anexos III e
+  IV com o ISS no teto: os tributos saem na ordem das colunas da lei (ISS
+  antes do IBS), como nas outras faixas. Antes, o ISS vinha por último.
+  Os valores não mudam.
+- Por dentro, sem mudar saída nem resultado: o `main` da linha de comando
+  dividido em funções menores, nomes internos que dizem o papel e a
+  conversão da lista de receitas num auxiliar só.
+
 ## 1.6.1 — 22/10
 
 - Número acima de R$ 1 trilhão (positivo ou negativo) é `ValueError`

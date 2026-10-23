@@ -10,11 +10,13 @@ disso está descontado. O Fator R olha os 12 meses da folha, então o que
 falta pode entrar aos poucos ou de uma vez; a biblioteca não escolhe.
 """
 
+from __future__ import annotations
+
 from decimal import Decimal, ROUND_CEILING
 from typing import NamedTuple
 
 from .calculo import anexo_por_fator_r, fator_r, valor_devido
-from .formato import CENTAVO, _contexto_fixo, para_decimal
+from .formato import CENTAVO, Numero, _contexto_fixo, para_decimal
 from .tabelas import FATOR_R_MINIMO
 
 
@@ -31,7 +33,8 @@ class PlanoFatorR(NamedTuple):
 
 
 @_contexto_fixo
-def planejar_fator_r(folha12, rbt12, receita_mes, *, ano, icms_iss_no_das=False):
+def planejar_fator_r(folha12: Numero, rbt12: Numero, receita_mes: Numero, *, ano: int,
+                     icms_iss_no_das: bool = False) -> PlanoFatorR:
     """Folha de 12 meses que leva o Fator R a 28% e o DAS do mês no Anexo V e no III.
 
     `folha12`, `rbt12`, `ano` e `icms_iss_no_das` como em `fator_r` e

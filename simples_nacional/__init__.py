@@ -14,6 +14,7 @@ from .calculo import (
     anexo_por_fator_r,
     avisos,
     avisos_inicio_atividade,
+    avisos_receita_do_ano,
     faixa,
     fator_r,
     rbt12_inicio_atividade,
@@ -38,7 +39,7 @@ from .tabelas import (
     vigencia,
 )
 
-__version__ = "1.6.1"
+__version__ = "1.7.0"
 
 __all__ = [
     "ANEXOS",
@@ -59,6 +60,7 @@ __all__ = [
     "anexo_por_fator_r",
     "avisos",
     "avisos_inicio_atividade",
+    "avisos_receita_do_ano",
     "faixa",
     "fator_r",
     "ler_numero",
