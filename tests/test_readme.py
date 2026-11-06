@@ -20,6 +20,37 @@ class TestExemplosDoReadme(unittest.TestCase):
             with self.subTest(bloco=i), contextlib.redirect_stdout(io.StringIO()):
                 exec(compile(bloco, f"README, bloco {i}", "exec"), {})
 
+    def test_resultado_no_comentario_e_o_de_verdade(self):
+        # a 1.7.0 saiu com Decimal('0.14740600') no README, e a conta dá
+        # Decimal('0.1474060'): o bloco rodava, o comentário não era conferido
+        texto = README.read_text(encoding="utf-8")
+        # só o que é repr de Python; "8,45% × 5,50% = ..." é conta explicada
+        literal = re.compile(r"^(Decimal\(|'|\[|\{|\(|True|False|None)")
+        conferidos = 0
+        for i, bloco in enumerate(re.findall(r"```python\n(.*?)```", texto, re.S), 1):
+            ns = {}
+            with contextlib.redirect_stdout(io.StringIO()):
+                exec(compile(bloco, f"README, bloco {i}", "exec"), ns)
+            for linha in bloco.splitlines():
+                m = re.match(r"^([^#\s][^#]*?)\s+#\s*(.+)$", linha)
+                if not m or not literal.match(m.group(2)):
+                    continue
+                expr, comentario = m.groups()
+                try:
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        obtido = repr(eval(expr, ns))
+                except SyntaxError:  # atribuição ou linha de continuação
+                    continue
+                with self.subTest(bloco=i, expr=expr):
+                    if "..." in comentario:  # lista de avisos cortada no README
+                        self.assertTrue(obtido.startswith(comentario.split("...")[0]),
+                                        f"README: {comentario}; obtido: {obtido}")
+                    else:
+                        self.assertTrue(comentario.startswith(obtido),
+                                        f"README: {comentario}; obtido: {obtido}")
+                conferidos += 1
+        self.assertGreaterEqual(conferidos, 25)
+
     def test_instalar_pela_tag_da_versao_atual(self):
         # a 1.1.0 e a 1.2.0 saíram com o README ainda em @v1.0.0
         from simples_nacional import __version__

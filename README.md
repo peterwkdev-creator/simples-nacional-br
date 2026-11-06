@@ -58,12 +58,14 @@ Estimativa conferida contra a tabela da lei: não substitui o PGDAS-D nem o cont
 ```
 
 `simples-nacional --help` mostra todas as opções. Sem `--ano`, vale o ano
-corrente, e a primeira linha diz qual tabela foi usada.
+corrente, e a primeira linha diz qual tabela foi usada. Se o terminal não
+achar o comando (no Windows, quando a pasta `Scripts` do Python não está no
+PATH), `python -m simples_nacional` com as mesmas opções faz a mesma conta.
 
 Outras formas:
 
 - direto da tag no GitHub:
-  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.7.0"`;
+  `pip install "git+https://github.com/peterwkdev-creator/simples-nacional-br@v1.7.1"`;
 - sem instalar, do código-fonte (`git clone`): `python -m unittest` roda
   os testes, e `python -m simples_nacional` faz a mesma conta.
 
@@ -175,7 +177,7 @@ aliquota_efetiva("I", 4_500_000, ano=2027)      # Decimal('0.105'): 6ª faixa de
 
 # acima do sublimite com a receita do ano dentro dele, até 2026:
 # 6ª faixa só federal (10,6%) + ICMS pela 5ª faixa (12,36% × 33,5% = 4,1406%)
-aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=True)       # Decimal('0.14740600')
+aliquota_efetiva("I", 4_500_000, ano=2026, icms_iss_no_das=True)       # Decimal('0.1474060')
 valor_devido("I", 4_500_000, "375000", ano=2026, icms_iss_no_das=True) # Decimal('55277.25')
 
 # de 2027 em diante, também o IBS: 10,5% + 12,36% × (33,50% + 0,17%)

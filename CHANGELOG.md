@@ -3,6 +3,15 @@
 Todas as datas são de 2026. A versão segue `simples_nacional.__version__`;
 cada uma tem uma tag `vX.Y.Z` no commit que a publicou.
 
+## 1.7.1 — 06/11
+
+- README: o exemplo do ICMS no DAS acima do sublimite mostrava
+  `Decimal('0.14740600')`, e a conta devolve `Decimal('0.1474060')` (o
+  mesmo número, com um zero a menos). Diz também que `python -m
+  simples_nacional` faz a conta quando o terminal não acha o comando.
+- Teste novo: o resultado escrito no comentário de cada exemplo do README é
+  conferido com o que a conta devolve; antes, só se via se o bloco rodava.
+
 ## 1.7.0 — 22/10
 
 - `parcelas_das` aceita `icms_iss_no_das=True`, com o mesmo sentido de
